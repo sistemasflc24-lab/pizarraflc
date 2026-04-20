@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reporte de Operaciones Diario</title>
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome -->
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha512-pItdx0nHkU1YvR5dpAtxEvsC0BpvyEuk+qS0bkkCm1cW0XkyKxO6jwxKF1u9IiVbGi4Z0eKCbFf8C4l4rXk4WQ=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"
+    />
+</head>
+<body class="bg-slate-100 min-h-screen">
+    <div class="max-w-7xl mx-auto p-4 space-y-4">
+        <!-- ENCABEZADO -->
+        <header class="flex items-center justify-between bg-white rounded-xl shadow p-4">
+            <div>
+                <h1 class="text-xl font-bold text-slate-800">
+                    Reporte de Operaciones Diario
+                </h1>
+                <p class="text-sm text-slate-500">
+                    Versión refactorizada (lógica Excel en <code>excelLogic.js</code>)
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="ejecutivo_display" class="text-sm text-slate-600">
+                    <!-- aquí puedes mostrar el ejecutivo logueado -->
+                </span>
+                <button
+                    id="btn-guardar"
+                    class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition"
+                >
+                    <i class="fa-solid fa-floppy-disk mr-1"></i> Guardar operación
+                </button>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- COLUMNA IZQUIERDA: FORMULARIO -->
+            <section class="space-y-4">
+                <!-- SECCIÓN 1: DATOS GENERALES -->
+                <article class="bg-white rounded-xl shadow p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="font-semibold text-slate-800">
+                            1. Datos generales de la operación
+                        </h2>
+                        <span class="text-xs uppercase tracking-wide text-slate-500">
+                            Colección <code>operaciones</code> (Firebase)
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <!-- Operadora -->
+                        <div>
+                            <label for="operadora" class="block text-xs font-semibold text-slate-600">
+                                Operadora
+                            </label>
+                            <input
+                                id="operadora"
+                                type="text"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                                placeholder="ORTZA, PROCESA, etc."
+                            />
+                        </div>
+
+                        <!-- Familia / Cliente interno -->
+                        <div>
+                            <label for="familia_cliente" class="block text-xs font-semibold text-slate-600">
+                                Familia / Cliente interno
+                            </label>
+                            <input
+                                id="familia_cliente"
+                                type="text"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                            />
+                        </div>
+
+                        <!-- Solicitante / Destajista / Beneficiario -->
+                        <div>
+                            <label for="solicitante" class="block text-xs font-semibold text-slate-600">
+                                Solicitante / Destajista / Beneficiario
+                            </label>
+                            <input
+                                id="solicitante"
+                                type="text"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                            />
+                        </div>
+
+                        <!-- Origen de la operación -->
+                        <div>
+                            <label for="origen_operacion" class="block text-xs font-semibold text-slate-600">
+                                Origen de la operación
+                            </label>
+                            <select
+                                id="origen_operacion"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                            >
+                                <option value="">Selecciona...</option>
+                                <option value="PAGADO">Pagado</option>
+                                <option value="FLUJO">Flujo</option>
+                                <option value="OTRO">Otro</option>
+                            </select>
+                        </div>
+
+                        <!-- Fecha -->
+                        <div>
+                            <label for="fecha" class="block text-xs font-semibold text-slate-600">
+                                Fecha de operación
+                            </label>
+                            <input
+                                id="fecha"
+                                type="date"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                            />
+                        </div>
+
+                        <!-- Semana (calculada) -->
+                        <div>
+                            <label for="semana" class="block text-xs font-semibold text-slate-600">
+                                Semana (calculada desde fecha)
+                            </label>
+                            <input
+                                id="semana"
+                                type="number"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                readonly
+                            />
+                        </div>
+
+                        <!-- ID operación -->
+                        <div>
+                            <label for="id_operacion" class="block text-xs font-semibold text-slate-600">
+                                ID Operación
+                            </label>
+                            <input
+                                id="id_operacion"
+                                type="text"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                                placeholder="Ej: Osa9RU"
+                            />
+                        </div>
+
+                        <!-- Moneda -->
+                        <div>
+                            <label for="moneda" class="block text-xs font-semibold text-slate-600">
+                                Moneda
+                            </label>
+                            <select
+                                id="moneda"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                            >
+                                <option value="">Selecciona...</option>
+                                <option value="MXN">MXN</option>
+                                <option value="USD">USD</option>
+                            </select>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- SECCIÓN 2: FACTURACIÓN + CARGA SOCIAL + COMISIÓN -->
+                <article class="bg-white rounded-xl shadow p-4 space-y-3">
+                    <h2 class="font-semibold text-slate-800">
+                        2. Facturación, carga social y comisión
+                    </h2>
+
+                    <!-- FACTURACIÓN -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <!-- Total factura -->
+                        <div>
+                            <label for="total_factura" class="block text-xs font-semibold text-slate-600">
+                                Total facturación
+                            </label>
+                            <input
+                                id="total_factura"
+                                type="number"
+                                step="0.01"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                                placeholder="0.00"
+                            />
+                        </div>
+
+                        <!-- Tasa IVA -->
+                        <div>
+                            <label for="tasa_iva" class="block text-xs font-semibold text-slate-600">
+                                Tasa IVA (%)
+                            </label>
+                            <select
+                                id="tasa_iva"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                            >
+                                <option value="16">16%</option>
+                                <option value="8">8%</option>
+                                <option value="0">0%</option>
+                            </select>
+                        </div>
+
+                        <!-- Importe IVA (calculado) -->
+                        <div>
+                            <label for="importe_iva" class="block text-xs font-semibold text-slate-600">
+                                Importe IVA (calculado)
+                            </label>
+                            <input
+                                id="importe_iva"
+                                type="number"
+                                step="0.01"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                readonly
+                            />
+                        </div>
+
+                        <!-- Subtotal sin IVA (calculado) -->
+                        <div>
+                            <label for="subtotal" class="block text-xs font-semibold text-slate-600">
+                                Subtotal sin IVA
+                            </label>
+                            <input
+                                id="subtotal"
+                                type="number"
+                                step="0.01"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                readonly
+                            />
+                        </div>
+                    </div>
+
+                    <!-- CARGA SOCIAL -->
+                    <div class="border-t border-slate-200 pt-3 mt-2">
+                        <h3 class="text-xs font-semibold text-slate-600 mb-2 uppercase">
+                            Carga social
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label for="ded_imss" class="block text-xs font-semibold text-slate-600">
+                                    IMSS
+                                </label>
+                                <input id="ded_imss" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label for="ded_incap" class="block text-xs font-semibold text-slate-600">
+                                    IMSS por incapacidad
+                                </label>
+                                <input id="ded_incap" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label for="ded_isr" class="block text-xs font-semibold text-slate-600">
+                                    ISR
+                                </label>
+                                <input id="ded_isr" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label for="ded_isn" class="block text-xs font-semibold text-slate-600">
+                                    ISN
+                                </label>
+                                <input id="ded_isn" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label for="ded_infonavit" class="block text-xs font-semibold text-slate-600">
+                                    INFONAVIT
+                                </label>
+                                <input id="ded_infonavit" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label for="ded_infonacot" class="block text-xs font-semibold text-slate-600">
+                                    INFONACOT
+                                </label>
+                                <input id="ded_infonacot" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label for="ded_cargas" class="block text-xs font-semibold text-slate-600">
+                                    Cargas retenidas / otras
+                                </label>
+                                <input id="ded_cargas" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+
+                            <div>
+                                <label for="total_carga_social" class="block text-xs font-semibold text-slate-600">
+                                    Total carga social (calculado)
+                                </label>
+                                <input
+                                    id="total_carga_social"
+                                    type="number"
+                                    step="0.01"
+                                    class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                    readonly
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- COMISIÓN + RETORNO -->
+                    <div class="border-t border-slate-200 pt-3 mt-2">
+                        <h3 class="text-xs font-semibold text-slate-600 mb-2 uppercase">
+                            Comisión y retorno
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label for="base_comisionable"
+                                       class="block text-xs font-semibold text-slate-600">
+                                    Base comisionable (calculada)
+                                </label>
+                                <input id="base_comisionable" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                       readonly />
+                            </div>
+                            <div>
+                                <label for="pct_comision"
+                                       class="block text-xs font-semibold text-slate-600">
+                                    % Comisión
+                                </label>
+                                <input id="pct_comision" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                                       placeholder="Ej: 5" />
+                            </div>
+                            <div>
+                                <label for="importe_comision"
+                                       class="block text-xs font-semibold text-slate-600">
+                                    Importe de comisión (calculado)
+                                </label>
+                                <input id="importe_comision" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                       readonly />
+                            </div>
+                            <div>
+                                <label for="monto_retorno"
+                                       class="block text-xs font-semibold text-slate-600">
+                                    Monto retorno (calculado)
+                                </label>
+                                <input id="monto_retorno" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                       readonly />
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- SECCIÓN 3: CONCILIACIÓN BANCARIA -->
+                <article class="bg-white rounded-xl shadow p-4 space-y-3 mt-4">
+                    <h2 class="font-semibold text-slate-800">
+                        3. Conciliación bancaria
+                    </h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label for="concil_banco" class="block text-xs font-semibold text-slate-600">
+                                Banco
+                            </label>
+                            <input
+                                id="concil_banco"
+                                type="text"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                                placeholder="BBVA, Banorte, etc."
+                            />
+                        </div>
+
+                        <div>
+                            <label for="concil_fecha" class="block text-xs font-semibold text-slate-600">
+                                Fecha de depósito
+                            </label>
+                            <input
+                                id="concil_fecha"
+                                type="date"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                            />
+                        </div>
+
+                        <div>
+                            <label for="concil_tipo_operacion" class="block text-xs font-semibold text-slate-600">
+                                Tipo de operación bancaria
+                            </label>
+                            <select
+                                id="concil_tipo_operacion"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                            >
+                                <option value="">Selecciona...</option>
+                                <option value="DEPOSITO">Depósito</option>
+                                <option value="TRANSFERENCIA">Transferencia</option>
+                                <option value="CHEQUE">Cheque</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="concil_deposito" class="block text-xs font-semibold text-slate-600">
+                                Monto depositado (estado de cuenta)
+                            </label>
+                            <input
+                                id="concil_deposito"
+                                type="number"
+                                step="0.01"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm"
+                                placeholder="0.00"
+                            />
+                        </div>
+                    </div>
+
+                    <div class="border-t border-slate-200 pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">
+                                Total facturado (referencia)
+                            </label>
+                            <input
+                                id="concil_total_factura"
+                                type="number"
+                                step="0.01"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                readonly
+                            />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">
+                                Diferencia (depósito - total facturado)
+                            </label>
+                            <input
+                                id="concil_diferencia"
+                                type="number"
+                                step="0.01"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                readonly
+                            />
+                        </div>
+               
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">
+                                Estado de conciliación
+                            </label>
+                            <div
+                                id="concil_estado"
+                                class="mt-1 px-3 py-2 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700"
+                            >
+                                Sin conciliar
+                            </div>
+                        </div>
+                    </div>
+                </article>
+                                <!-- SECCIÓN 4: DISTRIBUCIÓN DEL RETORNO -->
+                <article class="bg-white rounded-xl shadow p-4 space-y-3 mt-4">
+                    <h2 class="font-semibold text-slate-800">
+                        4. Distribución del retorno
+                    </h2>
+
+                    <!-- RETORNOS DIRECTOS -->
+                    <div class="border-b border-slate-200 pb-3 mb-3">
+                        <h3 class="text-xs font-semibold text-slate-600 mb-2 uppercase">
+                            Retornos (forma de entrega)
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Efectivo fiscal
+                                </label>
+                                <input id="ret_efectivo_fiscal" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Efectivo excedente
+                                </label>
+                                <input id="ret_efectivo_excedente" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Dispersión fiscal
+                                </label>
+                                <input id="ret_dispersion_fiscal" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Dispersión excedente
+                                </label>
+                                <input id="ret_dispersion_excedente" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Cheque fiscal
+                                </label>
+                                <input id="ret_cheque_fiscal" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Cheque excedente
+                                </label>
+                                <input id="ret_cheque_excedente" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CLASIFICACIÓN DEL RETORNO -->
+                    <div class="border-b border-slate-200 pb-3 mb-3">
+                        <h3 class="text-xs font-semibold text-slate-600 mb-2 uppercase">
+                            Clasificación del retorno
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Excedente
+                                </label>
+                                <input id="cat_excedente" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Asimilado
+                                </label>
+                                <input id="cat_asimilado" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Remanente
+                                </label>
+                                <input id="cat_remanente" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Dividendo
+                                </label>
+                                <input id="cat_dividendo" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    No retornada
+                                </label>
+                                <input id="cat_no_retornada" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Financiamiento
+                                </label>
+                                <input id="cat_financiamiento" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Resguardo
+                                </label>
+                                <input id="cat_resguardo" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Devoluciones
+                                </label>
+                                <input id="cat_devoluciones" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Estado de cuenta
+                                </label>
+                                <input id="cat_estado_cuenta" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600">
+                                    Pagos duplicados
+                                </label>
+                                <input id="cat_pagos_duplicados" type="number" step="0.01"
+                                       class="mt-1 w-full rounded-lg border-slate-300 text-sm" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RESUMEN DE DISTRIBUCIÓN -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">
+                                Total distribución
+                            </label>
+                            <input
+                                id="distrib_total"
+                                type="number"
+                                step="0.01"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                readonly
+                            />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">
+                                Diferencia (distribución - monto retorno)
+                            </label>
+                            <input
+                                id="distrib_diferencia"
+                                type="number"
+                                step="0.01"
+                                class="mt-1 w-full rounded-lg border-slate-300 text-sm bg-slate-50"
+                                readonly
+                            />
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600">
+                                Estado de distribución
+                            </label>
+                            <div
+                                id="distrib_estado"
+                                class="mt-1 px-3 py-2 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700"
+                            >
+                                Sin distribución registrada
+                            </div>
+                        </div>
+                    </div>
+                </article>
+            </section>
+            
+
+            <!-- COLUMNA DERECHA: RESUMEN / DEBUG -->
+            <section class="bg-white rounded-xl shadow p-4">
+                <h2 class="font-semibold text-slate-800 mb-2">
+                    Resumen de operación
+                </h2>
+                <p class="text-sm text-slate-500 mb-4">
+                    Aquí más adelante pintamos el resumen, conciliación y alertas de auditoría.
+                </p>
+                <pre id="debug_excel_logic"
+                     class="text-xs bg-slate-900 text-emerald-300 rounded-lg p-3 overflow-auto">
+                    <!-- Aquí mostraremos un pequeño debug de los cálculos -->
+                </pre>
+            </section>
+        </main>
+    </div>
+
+            <!-- JS: lógica Excel, conciliación, distribución y auditoría -->
+    <script src="./excelLogic.js"></script>
+    <script src="./conciliacion.js"></script>
+    <script src="./distribucion.js"></script>
+    <script src="./auditoria.js"></script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        if (window.ExcelLogic) {
+          window.ExcelLogic.initExcelLogic();
+        }
+        if (window.Conciliacion) {
+          window.Conciliacion.initConciliacion();
+        }
+        if (window.Distribucion) {
+          window.Distribucion.initDistribucion();
+        }
+        if (window.Auditoria) {
+          window.Auditoria.initAuditoria();
+        }
+      });
+    </script>
+  </body>
+</html>
+

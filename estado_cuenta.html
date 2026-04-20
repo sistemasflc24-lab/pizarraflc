@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuditPro - Estado de Cuenta</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #0a0e1a;
+            color: white;
+            min-height: 100vh;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        header {
+            background-color: #0d1220;
+            border-bottom: 1px solid #374151;
+            padding: 1rem 1.5rem;
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 2rem;
+            height: 2rem;
+            background-color: #2563eb;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.875rem;
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        .main-layout {
+            display: flex;
+            min-height: calc(100vh - 73px);
+        }
+
+        .sidebar {
+            width: 16rem;
+            background-color: #0d1220;
+            border-right: 1px solid #374151;
+            padding: 1.5rem;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            color: #9ca3af;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+
+        .sidebar-nav a:hover {
+            background-color: #1a2332;
+        }
+
+        .sidebar-nav a.active {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .content-container {
+            max-width: 80rem;
+            margin: 0 auto;
+        }
+
+        .metric-card {
+            background-color: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="header-left">
+                <div class="logo">
+                    <div class="logo-icon bg-indigo-600"><i class="fas fa-wallet text-white"></i></div>
+                    <span class="logo-text">LedgerPro</span>
+                </div>
+            </div>
+            <div class="header-right flex items-center gap-4">
+                <a href="index.html"
+                    class="text-sm border border-slate-700 hover:bg-slate-800 px-3 py-1.5 rounded text-slate-300 transition-colors">Volver
+                    a MiPizarra</a>
+                <span class="text-sm font-bold text-indigo-400" id="user-display">Cargando usuario...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-nav">
+                <a href="auditoria.html" class="nav-item">
+                    <span class="icon">📊</span> Auditoría General
+                </a>
+                <a href="#" class="nav-item active">
+                    <span class="icon">💼</span> Libros Mayores (Saldos)
+                </a>
+                <!-- Future Modules -->
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content relative">
+
+            <!-- LOADING OVERLAY -->
+            <div id="loading-overlay"
+                class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+                <div class="text-center">
+                    <i class="fas fa-circle-notch fa-spin text-4xl text-indigo-500 mb-4"></i>
+                    <p class="text-slate-300 font-medium tracking-widest text-sm uppercase" id="loading-text">Cargando
+                        Módulo...</p>
+                </div>
+            </div>
+
+            <div class="content-container">
+                <div class="flex justify-between items-start mb-8 border-b border-slate-800 pb-4">
+                    <div>
+                        <h1 class="text-3xl font-bold mb-2 flex items-center gap-3">
+                            Estado de Cuenta <span
+                                class="bg-indigo-900/50 text-indigo-400 text-xs px-2 py-1 rounded border border-indigo-700 border-dashed">FASE
+                                1</span>
+                        </h1>
+                        <p class="text-slate-400 text-sm">Centralización y control de saldos y financiamientos de
+                            familias por operadora.</p>
+                    </div>
+                </div>
+
+                <!-- SELECTOR PANEL -->
+                <div class="bg-slate-800 p-6 rounded-xl border border-slate-700 shadow-md mb-8">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">1.
+                                Seleccionar Operadora</label>
+                            <select id="select-operadora"
+                                class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors font-semibold"
+                                onchange="window.loadLibroMayor()">
+                                <option value="">-- Elija Operadora --</option>
+                                <!-- JS Injects here -->
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide">2.
+                                Búsqueda de Familia / Cliente</label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <i class="fas fa-search text-slate-500"></i>
+                                </div>
+                                <input type="text" id="search-familia"
+                                    placeholder="Escriba el nombre exacto de la familia y presione Enter..."
+                                    class="w-full bg-slate-900 border border-slate-600 rounded-lg pl-11 pr-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                                    onkeypress="if(event.key === 'Enter') window.filterFamilia()">
+                            </div>
+                            <p class="text-[10px] text-slate-500 mt-2"><i class="fas fa-info-circle mr-1"></i>Debe
+                                primero seleccionar una operadora para visualizar el saldo consolidado arriba.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ROOT LEDGER DASHBOARD (Hidden until selected) -->
+                <div id="ledger-dashboard" class="hidden">
+
+                    <div class="flex items-center justify-between mb-4">
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fas fa-building text-slate-400"></i>
+                            Caja de Operadora: <span id="lbl-operadora-name"
+                                class="text-indigo-400 border-b border-indigo-400/30 pb-0.5">JARO_MXN</span>
+                        </h2>
+
+                        <button onclick="window.openAjusteModal()"
+                            class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors shadow-lg shadow-indigo-900/20 flex items-center gap-2">
+                            <i class="fas fa-plus-circle"></i> Ajuste en Caja (BETA)
+                        </button>
+                    </div>
+
+                    <!-- Balances (Root Level) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        <div class="metric-card relative overflow-hidden group">
+                            <div
+                                class="absolute -right-4 -top-4 text-slate-700 opacity-20 group-hover:opacity-30 transition-opacity text-7xl">
+                                <i class="fas fa-piggy-bank"></i>
+                            </div>
+                            <div class="metric-label font-bold tracking-widest uppercase flex items-center gap-1"><i
+                                    class="fas fa-shield-alt text-emerald-500 mr-1"></i> SALDO RESGUARDOS</div>
+                            <div class="metric-value text-emerald-400" id="val-resguardo">$0.00</div>
+                            <p class="text-xs text-slate-500 font-medium">Líquido de clientes a favor (caja).</p>
+                        </div>
+                        <div class="metric-card relative overflow-hidden group">
+                            <div
+                                class="absolute -right-4 -top-4 text-slate-700 opacity-20 group-hover:opacity-30 transition-opacity text-7xl">
+                                <i class="fas fa-hand-holding-usd"></i>
+                            </div>
+                            <div class="metric-label font-bold tracking-widest uppercase flex items-center gap-1"><i
+                                    class="fas fa-file-invoice-dollar text-rose-500 mr-1"></i> SALDO FINANCIAMIENTO
+                            </div>
+                            <div class="metric-value text-rose-400" id="val-financiamiento">$0.00</div>
+                            <p class="text-xs text-slate-500 font-medium">Deuda acumulada de clientes.</p>
+                        </div>
+                        <div class="metric-card relative overflow-hidden group bg-slate-800/50">
+                            <div
+                                class="absolute -right-4 -top-4 text-slate-700 opacity-20 group-hover:opacity-30 transition-opacity text-7xl">
+                                <i class="fas fa-chart-pie"></i>
+                            </div>
+                            <div class="metric-label font-bold tracking-widest uppercase flex items-center gap-1"><i
+                                    class="fas fa-balance-scale text-blue-400 mr-1"></i> FONDO DISPONIBLE REAL</div>
+                            <div class="metric-value text-blue-300" id="val-disponible">$0.00</div>
+                            <p class="text-xs text-slate-500 font-medium">Monto propio libre en operadora.</p>
+                        </div>
+                    </div>
+
+                    <!-- Filtered Family View -->
+                    <div id="family-view"
+                        class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-lg hidden">
+                        <div class="bg-slate-900/80 border-b border-slate-700 p-4 flex justify-between items-center">
+                            <h3 class="font-bold text-white flex items-center gap-2">
+                                <i class="fas fa-users text-slate-400"></i>
+                                Movimientos de Familia: <span id="lbl-familia-name" class="text-amber-400 ml-1"></span>
+                            </h3>
+                            <div class="flex items-center gap-3">
+                                <div class="flex items-center gap-2 text-xs">
+                                    <label class="text-slate-400 font-bold">Desde:</label>
+                                    <input type="date" id="filter-date-start" onchange="window.filterFamilia()"
+                                        class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white focus:outline-none focus:border-indigo-500">
+                                </div>
+                                <div class="flex items-center gap-2 text-xs">
+                                    <label class="text-slate-400 font-bold">Hasta:</label>
+                                    <input type="date" id="filter-date-end" onchange="window.filterFamilia()"
+                                        class="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-white focus:outline-none focus:border-indigo-500">
+                                </div>
+                                <button onclick="window.exportToExcel()"
+                                    class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-3 rounded text-xs transition-colors shadow-lg flex items-center gap-2">
+                                    <i class="fas fa-file-excel"></i> Exportar
+                                </button>
+                                <div class="text-sm font-medium text-slate-400 ml-2" id="lbl-mov-count">0 movimientos
+                                    encontrados</div>
+                            </div>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr
+                                        class="bg-slate-800 text-xs uppercase tracking-wider text-slate-400 border-b border-slate-700">
+                                        <th class="p-4 font-semibold">Fecha / Op ID</th>
+                                        <th class="p-4 font-semibold">Concepto / Origen</th>
+                                        <th class="p-4 font-semibold text-right">Cargo (Descuentos)</th>
+                                        <th class="p-4 font-semibold text-right">Abono (Ingresos)</th>
+                                        <th class="p-4 font-semibold text-right">Saldo Hist.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-movimientos" class="text-sm divide-y divide-slate-700/50">
+                                    <!-- JS Injects -->
+                                    <tr>
+                                        <td colspan="5" class="p-8 text-center text-slate-500">
+                                            <i class="fas fa-search text-3xl mb-3 opacity-50 block"></i>
+                                            Realiza una búsqueda de familia arriba para cargar el historial de
+                                            movimientos en esta operadora.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- UI: Modal de Ajuste en Caja -->
+    <div id="ajuste-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <div class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity"
+            onclick="window.closeAjusteModal()"></div>
+
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                <div
+                    class="relative transform overflow-hidden rounded-xl bg-slate-800 text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-xl border border-slate-700">
+
+                    <div class="bg-slate-900 px-6 py-4 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fas fa-plus-circle text-indigo-500"></i> Nuevo Movimiento de Caja
+                        </h3>
+                        <button type="button" class="text-slate-400 hover:text-white"
+                            onclick="window.closeAjusteModal()">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+
+                    <div class="px-6 py-6 space-y-5">
+                        <div
+                            class="bg-indigo-900/20 border border-indigo-500/20 rounded-lg p-3 text-xs text-indigo-300">
+                            <strong>Nota (Fase 1):</strong> Usa este panel para asentar el saldo inicial depositado por
+                            un cliente (Resguardo), o para saldar un financiamiento (Préstamo) manualmente, sin vincular
+                            a un ticket operativo.<br>
+                            Los cambios se gravarán en: <strong id="lbl-modal-operadora"
+                                class="text-indigo-400"></strong>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1">Nombre Exacto de la
+                                Familia/Cliente *</label>
+                            <input type="text" id="input-ajuste-familia" placeholder="Ej. IQOOL"
+                                class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 mb-1">Tipo de Movimiento *</label>
+                                <select id="input-ajuste-tipo"
+                                    class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                                    <option value="ABONO_RESGUARDO">Abono a Resguardo (+)</option>
+                                    <option value="RETIRO_RESGUARDO">Retiro de Resguardo (-)</option>
+                                    <option value="PRESTAMO_OTORGADO">Financiamiento Otorgado (+ Deuda)</option>
+                                    <option value="PAGO_FINANCIAMIENTO">Liquidación de Deuda (- Deuda)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-400 mb-1">Importe en Dólares/MXN
+                                    *</label>
+                                <div class="relative">
+                                    <div
+                                        class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                        $</div>
+                                    <input type="number" step="0.01" id="input-ajuste-monto" placeholder="0.00"
+                                        class="w-full bg-slate-900 border border-slate-600 rounded-lg pl-8 pr-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors font-mono">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-bold text-slate-400 mb-1">Concepto / Referencia</label>
+                            <input type="text" id="input-ajuste-concepto"
+                                placeholder="Ej. Saldo inicial depositado, transferencia #12345"
+                                class="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                        </div>
+
+                    </div>
+
+                    <div class="bg-slate-900 px-6 py-4 sm:flex sm:flex-row-reverse border-t border-slate-700">
+                        <button type="button"
+                            class="inline-flex w-full justify-center rounded-lg bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 text-sm font-bold text-white shadow-sm sm:w-auto transition-colors"
+                            onclick="window.submitAjusteCaja()">
+                            Guardar Movimiento
+                        </button>
+                        <button type="button"
+                            class="mt-3 inline-flex w-full justify-center rounded-lg bg-slate-800 border border-slate-600 hover:bg-slate-700 px-5 py-2.5 text-sm font-bold text-white shadow-sm sm:mt-0 sm:w-auto sm:mr-3 transition-colors"
+                            onclick="window.closeAjusteModal()">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <!-- EXCEL EXPORT SCRIPT (SheetJS) -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Application Logic -->
+    <script src="estadoCuentaApp.js"></script>
+</body>
+
+</html>

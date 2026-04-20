@@ -1,0 +1,20 @@
+{
+  "name": "Pizarra GI - Gastos Internos",
+  "short_name": "GI Móvil",
+  "start_url": "/movil_gi.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "FLC original.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "FLC original.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

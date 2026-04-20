@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Auditoría</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+        }
+
+        .dashboard-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            border-radius: 1.5rem;
+            box-shadow: 0 24px 60px -48px rgba(15, 23, 42, 0.45);
+        }
+
+        .metric-card {
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95));
+            border: 1px solid #e2e8f0;
+            border-radius: 1.25rem;
+            padding: 1rem 1.1rem;
+            box-shadow: 0 18px 40px -36px rgba(79, 70, 229, 0.35);
+        }
+
+        .filter-input {
+            width: 100%;
+            border: 1px solid #dbe2f0;
+            background: #fff;
+            border-radius: 0.9rem;
+            padding: 0.8rem 0.9rem;
+            font-size: 0.875rem;
+            font-weight: 700;
+            color: #334155;
+            outline: none;
+        }
+
+        .filter-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+        }
+
+        .tab-btn {
+            border-radius: 999px;
+            padding: 0.8rem 1rem;
+            font-size: 0.76rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #475569;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.is-active {
+            background: #4f46e5;
+            border-color: #4f46e5;
+            color: #fff;
+            box-shadow: 0 16px 38px -26px rgba(79, 70, 229, 0.6);
+        }
+
+        .report-row {
+            transition: all 0.2s ease;
+        }
+
+        .report-row:hover {
+            background: #f8fafc;
+        }
+
+        .report-row.is-active {
+            background: linear-gradient(90deg, rgba(79, 70, 229, 0.1), rgba(14, 165, 233, 0.08));
+            border-left: 4px solid #4f46e5;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 0.28rem 0.65rem;
+            font-size: 0.66rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            border: 1px solid transparent;
+        }
+
+        .pill-indigo { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
+        .pill-emerald { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+        .pill-rose { background: #fff1f2; color: #be123c; border-color: #fecdd3; }
+        .pill-amber { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+        .pill-slate { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+        .pill-sky { background: #f0f9ff; color: #0369a1; border-color: #bae6fd; }
+
+        .table-shell {
+            border: 1px solid #e2e8f0;
+            border-radius: 1.2rem;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        table thead th {
+            position: sticky;
+            top: 0;
+            background: #f8fafc;
+            z-index: 1;
+        }
+    </style>
+</head>
+
+<body class="text-slate-800">
+    <div class="min-h-screen">
+        <header class="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
+            <div class="mx-auto flex max-w-[1600px] items-center justify-between gap-4 px-6 py-4">
+                <div class="flex items-center gap-4">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-600 text-xl font-black text-white shadow-lg shadow-indigo-600/30">
+                        DA
+                    </div>
+                    <div>
+                        <div class="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-500">Reportes de Auditoría</div>
+                        <h1 class="text-2xl font-black text-slate-900">Dashboard Auditoría Semanal</h1>
+                        <p class="text-sm font-medium text-slate-500">Histórico de cierres semanales por ejecutivo y panorama general.</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="dashboard-user-display" class="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-black uppercase tracking-wide text-indigo-700">Cargando usuario...</span>
+                    <a href="reporte de operaciones diario.html" class="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-slate-700 shadow-sm transition hover:bg-slate-50">
+                        Volver al Reporte
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <main class="mx-auto flex max-w-[1600px] flex-col gap-6 px-6 py-6">
+            <section class="dashboard-card p-5">
+                <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div class="flex flex-wrap gap-2">
+                        <button id="tab-detail" type="button" class="tab-btn is-active">Cierre semanal por ejecutivo</button>
+                        <button id="tab-general" type="button" class="tab-btn">Reporte semanal general</button>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button id="btn-export-detail" type="button" class="rounded-xl border border-indigo-600 bg-indigo-600 px-4 py-2 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-500">Exportar Excel ejecutivo</button>
+                        <button id="btn-export-general" type="button" class="rounded-xl border border-emerald-600 bg-emerald-500 px-4 py-2 text-xs font-black uppercase tracking-wide text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400">Exportar Excel general</button>
+                    </div>
+                </div>
+
+                <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
+                    <div>
+                        <label class="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Año</label>
+                        <select id="filter-year" class="filter-input"></select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Semana</label>
+                        <select id="filter-week" class="filter-input"></select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Ejecutivo</label>
+                        <select id="filter-executive" class="filter-input"></select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Auditor</label>
+                        <select id="filter-auditor" class="filter-input"></select>
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Cierre desde</label>
+                        <input id="filter-date-start" type="date" class="filter-input">
+                    </div>
+                    <div>
+                        <label class="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Cierre hasta</label>
+                        <div class="flex gap-2">
+                            <input id="filter-date-end" type="date" class="filter-input">
+                            <button id="btn-reset-filters" type="button" class="rounded-xl border border-slate-200 bg-white px-4 text-xs font-black uppercase tracking-wide text-slate-600 transition hover:bg-slate-50">Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="empty-state" class="dashboard-card hidden p-10 text-center">
+                <div class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Sin snapshots de auditoría</div>
+                <div class="mt-3 text-2xl font-black text-slate-800">Todavía no hay cierres semanales registrados</div>
+                <p class="mx-auto mt-3 max-w-2xl text-sm font-medium text-slate-500">Los reportes aparecerán aquí a partir de las nuevas semanas cerradas por auditoría. Esta pantalla solo lee snapshots históricos de <span class="font-black text-indigo-600">audit_weekly_reports</span>.</p>
+            </section>
+
+            <section id="view-detail" class="space-y-6">
+                <div class="grid grid-cols-1 gap-6 2xl:grid-cols-[1.15fr_0.85fr]">
+                    <div class="dashboard-card p-5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-[11px] font-black uppercase tracking-[0.18em] text-indigo-500">Cierre seleccionado</div>
+                                <div id="detail-title" class="mt-2 text-2xl font-black text-slate-900">Selecciona un cierre</div>
+                                <div id="detail-subtitle" class="mt-1 text-sm font-medium text-slate-500">Elige una semana cerrada para ver su ficha completa y el detalle de operaciones.</div>
+                            </div>
+                            <span id="detail-closure-pill" class="pill pill-slate">Sin cierre</span>
+                        </div>
+                        <div class="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div class="metric-card">
+                                <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Ejecutivo</div>
+                                <div id="detail-executive" class="mt-2 text-xl font-black text-slate-900">-</div>
+                                <div id="detail-weekline" class="mt-1 text-xs font-bold text-slate-500">-</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Auditor / Supervisor</div>
+                                <div id="detail-auditor" class="mt-2 text-lg font-black text-slate-900">-</div>
+                                <div id="detail-supervisor" class="mt-1 text-xs font-bold text-slate-500">-</div>
+                            </div>
+                            <div class="metric-card md:col-span-2">
+                                <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Nota de cierre</div>
+                                <div id="detail-note" class="mt-2 text-sm font-semibold leading-relaxed text-slate-600">-</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 xl:grid-cols-3">
+                        <div class="metric-card">
+                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Operaciones</div>
+                            <div id="detail-kpi-ops" class="mt-2 text-3xl font-black text-slate-900">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Aprobadas</div>
+                            <div id="detail-kpi-approved" class="mt-2 text-3xl font-black text-emerald-600">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Rechazadas</div>
+                            <div id="detail-kpi-rejected" class="mt-2 text-3xl font-black text-rose-600">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Pendientes</div>
+                            <div id="detail-kpi-pending" class="mt-2 text-3xl font-black text-amber-600">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Monto auditado</div>
+                            <div id="detail-kpi-amount" class="mt-2 text-xl font-black text-slate-900">$0.00</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Retorno auditado</div>
+                            <div id="detail-kpi-return" class="mt-2 text-xl font-black text-indigo-700">$0.00</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Wallet</div>
+                            <div id="detail-kpi-wallet" class="mt-2 text-xl font-black text-cyan-700">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Casos</div>
+                            <div id="detail-kpi-case" class="mt-2 text-xl font-black text-sky-700">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Tiempo de cierre</div>
+                            <div id="detail-kpi-time" class="mt-2 text-xl font-black text-slate-900">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-card p-5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Historial de cierres</div>
+                            <div class="mt-1 text-lg font-black text-slate-900">Versiones registradas por semana cerrada</div>
+                        </div>
+                        <span id="detail-report-count" class="pill pill-indigo">0 cierres</span>
+                    </div>
+                    <div class="mt-4 table-shell max-h-[280px] overflow-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                                    <th class="px-4 py-3">Semana</th>
+                                    <th class="px-4 py-3">Ejecutivo</th>
+                                    <th class="px-4 py-3">Auditor</th>
+                                    <th class="px-4 py-3 text-right">Ops</th>
+                                    <th class="px-4 py-3 text-right">Monto</th>
+                                    <th class="px-4 py-3 text-right">Cierre</th>
+                                    <th class="px-4 py-3 text-center">Versión</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detail-report-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="dashboard-card p-5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Detalle operativo</div>
+                            <div class="mt-1 text-lg font-black text-slate-900">Operaciones incluidas en el cierre</div>
+                        </div>
+                        <span id="detail-ops-count" class="pill pill-slate">0 operaciones</span>
+                    </div>
+                    <div class="mt-4 table-shell max-h-[520px] overflow-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                                    <th class="px-4 py-3">ID</th>
+                                    <th class="px-4 py-3">Fecha</th>
+                                    <th class="px-4 py-3">Operadora</th>
+                                    <th class="px-4 py-3">Cliente</th>
+                                    <th class="px-4 py-3">Origen</th>
+                                    <th class="px-4 py-3 text-right">Importe</th>
+                                    <th class="px-4 py-3 text-right">Retorno</th>
+                                    <th class="px-4 py-3">Modelo</th>
+                                    <th class="px-4 py-3">Wallet</th>
+                                    <th class="px-4 py-3">Caso</th>
+                                    <th class="px-4 py-3">Estatus</th>
+                                    <th class="px-4 py-3">Última modificación</th>
+                                </tr>
+                            </thead>
+                            <tbody id="detail-ops-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <section id="view-general" class="hidden space-y-6">
+                <div class="grid grid-cols-2 gap-4 xl:grid-cols-6">
+                    <div class="metric-card">
+                        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Semanas cerradas</div>
+                        <div id="general-kpi-weeks" class="mt-2 text-3xl font-black text-slate-900">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Semanas reabiertas</div>
+                        <div id="general-kpi-reopened" class="mt-2 text-3xl font-black text-amber-600">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Ops auditadas</div>
+                        <div id="general-kpi-ops" class="mt-2 text-3xl font-black text-slate-900">0</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Monto auditado</div>
+                        <div id="general-kpi-amount" class="mt-2 text-xl font-black text-slate-900">$0.00</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Retorno auditado</div>
+                        <div id="general-kpi-return" class="mt-2 text-xl font-black text-indigo-700">$0.00</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">Promedio de cierre</div>
+                        <div id="general-kpi-time" class="mt-2 text-xl font-black text-slate-900">-</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-6 2xl:grid-cols-2">
+                    <div class="dashboard-card p-5">
+                        <div class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Gráfica 1</div>
+                        <div class="mt-1 text-lg font-black text-slate-900">Cierres por semana</div>
+                        <div class="mt-4 h-[320px]"><canvas id="chart-closures-by-week"></canvas></div>
+                    </div>
+                    <div class="dashboard-card p-5">
+                        <div class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Gráfica 2</div>
+                        <div class="mt-1 text-lg font-black text-slate-900">Aprobadas vs rechazadas vs pendientes</div>
+                        <div class="mt-4 h-[320px]"><canvas id="chart-status-breakdown"></canvas></div>
+                    </div>
+                    <div class="dashboard-card p-5">
+                        <div class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Gráfica 3</div>
+                        <div class="mt-1 text-lg font-black text-slate-900">Monto auditado por ejecutivo</div>
+                        <div class="mt-4 h-[320px]"><canvas id="chart-amount-by-executive"></canvas></div>
+                    </div>
+                    <div class="dashboard-card p-5">
+                        <div class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Gráfica 4</div>
+                        <div class="mt-1 text-lg font-black text-slate-900">Tiempo promedio de cierre por ejecutivo</div>
+                        <div class="mt-4 h-[320px]"><canvas id="chart-time-by-executive"></canvas></div>
+                    </div>
+                    <div class="dashboard-card p-5 2xl:col-span-2">
+                        <div class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Gráfica 5</div>
+                        <div class="mt-1 text-lg font-black text-slate-900">Distribución wallet vs no wallet</div>
+                        <div class="mt-4 h-[320px]"><canvas id="chart-wallet-share"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="dashboard-card p-5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Resumen general</div>
+                            <div class="mt-1 text-lg font-black text-slate-900">Semanas cerradas filtradas</div>
+                        </div>
+                        <span id="general-report-count" class="pill pill-indigo">0 registros</span>
+                    </div>
+                    <div class="mt-4 table-shell max-h-[520px] overflow-auto">
+                        <table class="min-w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-[11px] font-black uppercase tracking-wide text-slate-500">
+                                    <th class="px-4 py-3">Semana</th>
+                                    <th class="px-4 py-3">Ejecutivo</th>
+                                    <th class="px-4 py-3">Auditor</th>
+                                    <th class="px-4 py-3 text-right">Ops</th>
+                                    <th class="px-4 py-3 text-right">Monto</th>
+                                    <th class="px-4 py-3 text-right">Aprobadas</th>
+                                    <th class="px-4 py-3 text-right">Rechazadas</th>
+                                    <th class="px-4 py-3 text-right">Pendientes</th>
+                                    <th class="px-4 py-3 text-right">Cierre</th>
+                                    <th class="px-4 py-3 text-center">Versión</th>
+                                </tr>
+                            </thead>
+                            <tbody id="general-report-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="dashboardAuditoriaApp.js"></script>
+</body>
+
+</html>

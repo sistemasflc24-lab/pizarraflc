@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Ejecutivo - Pizarra FLC</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/generative-ai": "https://cdn.jsdelivr.net/npm/@google/generative-ai@0.21.0/+esm"
+        }
+      }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 1s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Barra de progreso visual */
+        .mini-progress-bar {
+            display: flex;
+            width: 100px;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            background-color: #334155;
+        }
+
+        .mini-progress-segment {
+            width: 16.66%;
+            border-right: 1px solid #0f172a;
+            opacity: 0.3;
+            transition: opacity 0.3s;
+        }
+
+        .ai-insight {
+            transition: all 0.3s ease;
+        }
+
+        .ai-insight:hover {
+            transform: translateX(5px);
+        }
+
+        .gemini-chat-bubble {
+            animation: popIn 0.3s ease-out;
+        }
+
+        @keyframes popIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen p-6">
+
+    <header class="flex justify-between items-center mb-8 animate-fade-in">
+        <div>
+            <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400">
+                <i class="fas fa-chart-line mr-2 text-blue-400"></i>Monitor Corporativo
+            </h1>
+            <p class="text-slate-400 text-sm mt-1">Operaciones del Día • <span id="last-update">Conectando...</span></p>
+        </div>
+
+        <div class="glass-panel p-1 flex">
+            <button onclick="DashboardApp.setFilter(0)"
+                class="filter-btn px-4 py-1 rounded-md text-xs font-semibold bg-blue-600 text-white shadow-lg shadow-blue-500/50 hover:bg-slate-700 transition-all">Hoy</button>
+            <button onclick="DashboardApp.setFilter(7)"
+                class="filter-btn px-4 py-1 rounded-md text-xs font-semibold text-slate-300 hover:bg-slate-700 transition-all">7
+                Días</button>
+            <button onclick="DashboardApp.setFilter(30)"
+                class="filter-btn px-4 py-1 rounded-md text-xs font-semibold text-slate-300 hover:bg-slate-700 transition-all">Mes</button>
+        </div>
+
+        <!-- Drill-Down Filters -->
+        <div class="glass-panel p-1 flex ml-4 gap-2">
+            <select id="filter-familia" onchange="DashboardApp.applyDrillDown()"
+                class="bg-slate-800 text-xs text-slate-300 border-none rounded px-2 outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="all">Todas las Familias</option>
+            </select>
+            <select id="filter-status" onchange="DashboardApp.applyDrillDown()"
+                class="bg-slate-800 text-xs text-slate-300 border-none rounded px-2 outline-none focus:ring-1 focus:ring-blue-500">
+                <option value="all">Todos los Estatus</option>
+                <option value="completado">Completados</option>
+                <option value="autorizado">Autorizados</option>
+                <option value="pendiente">Pendientes</option>
+            </select>
+        </div>
+    </header>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 animate-fade-in">
+        <div class="glass-panel p-6 relative overflow-hidden group">
+            <div
+                class="absolute -right-6 -top-6 w-24 h-24 bg-blue-500 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity">
+            </div>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Operaciones Activas</p>
+            <h2 id="kpi-count" class="text-4xl font-bold mt-2"><span
+                    class="animate-pulse bg-slate-700 h-8 w-16 block rounded"></span></h2>
+            <div class="mt-2 text-xs text-emerald-400 flex items-center"><i class="fas fa-bolt mr-1"></i> <span
+                    id="kpi-count-trend">En vivo</span></div>
+        </div>
+
+        <div class="glass-panel p-6 relative overflow-hidden group">
+            <div
+                class="absolute -right-6 -top-6 w-24 h-24 bg-emerald-500 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity">
+            </div>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Monto Total (MXN)</p>
+            <h2 id="kpi-total" class="text-4xl font-bold mt-2 text-emerald-400"><span
+                    class="animate-pulse bg-slate-700 h-8 w-32 block rounded"></span></h2>
+            <div class="mt-2 text-xs text-slate-400">Volumen solicitado</div>
+        </div>
+
+        <div class="glass-panel p-6 relative overflow-hidden group">
+            <div
+                class="absolute -right-6 -top-6 w-24 h-24 bg-purple-500 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity">
+            </div>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Saldo Pendiente</p>
+            <h2 id="kpi-pending" class="text-4xl font-bold mt-2 text-amber-400"><span
+                    class="animate-pulse bg-slate-700 h-8 w-32 block rounded"></span></h2>
+            <div class="mt-2 text-xs text-slate-400">Por procesar/autorizar</div>
+        </div>
+
+        <div class="glass-panel p-6 relative overflow-hidden group">
+            <div
+                class="absolute -right-6 -top-6 w-24 h-24 bg-indigo-500 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity">
+            </div>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Dispersado</p>
+            <h2 id="kpi-dispersed" class="text-4xl font-bold mt-2 text-indigo-400"><span
+                    class="animate-pulse bg-slate-700 h-8 w-32 block rounded"></span></h2>
+            <div class="mt-2 text-xs text-slate-400">Pagado en Bancos</div>
+        </div>
+    </div>
+
+    <!-- RISK MONITOR & MISSION CONTROL -->
+    <div id="risk-monitor-panel" class="mb-6 hidden animate-fade-in">
+        <!-- Injected via JS -->
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8 animate-fade-in">
+        <!-- FUNNEL CHART -->
+        <div class="glass-panel p-6">
+            <h3 class="text-lg font-semibold mb-4 text-slate-200">Eficiencia Operativa (Embudo)</h3>
+            <div class="h-64"><canvas id="chartFunnel"></canvas></div>
+            <p class="text-xs text-slate-500 text-center mt-2">Converión: Solicitado → Dispersado</p>
+        </div>
+
+        <!-- WORKLOAD HEATMAP -->
+        <div class="glass-panel p-6">
+            <h3 class="text-lg font-semibold mb-4 text-slate-200">Carga de Trabajo (Mapa de Calor)</h3>
+            <div class="h-64"><canvas id="chartHeatmap"></canvas></div>
+            <p class="text-xs text-slate-500 text-center mt-2">Distribución de operaciones por hora</p>
+        </div>
+    </div>
+
+    <div class="mt-6 glass-panel p-6 animate-fade-in border-t border-purple-500/30">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-slate-200">
+                <i class="fas fa-sparkles text-purple-400 mr-2"></i>Inteligencia Operativa
+            </h3>
+            <div class="flex items-center gap-2">
+                <select id="model-selector" onchange="AIInsights.refreshInsights()"
+                    class="text-[10px] bg-slate-900 text-slate-300 border border-slate-700 rounded px-2 py-1 outline-none focus:border-purple-500">
+                    <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Nuevo/Experimental)</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (Estable)</option>
+                </select>
+
+                <button onclick="AIInsights.refreshInsights()"
+                    class="text-xs bg-purple-900/50 hover:bg-purple-800 text-purple-200 px-3 py-1 rounded-lg transition flex items-center border border-purple-500/50">
+                    <i class="fas fa-sync-alt mr-1"></i> Analizar
+                </button>
+            </div>
+        </div>
+
+        <div id="gemini-chat-container" class="mb-6"></div>
+
+        <div id="ai-insights-container" class="space-y-3 min-h-[100px]">
+            <div class="text-center py-6 text-slate-500">
+                <p>Esperando datos para análisis...</p>
+            </div>
+        </div>
+
+        <div id="ai-stats" class="mt-4 pt-4 border-t border-slate-700/50 text-xs text-slate-500 hidden">
+            <div class="flex justify-between">
+                <span>Último análisis: <span id="last-analysis-time">--:--</span></span>
+                <span>Powered by Gemini</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 animate-fade-in mt-6">
+        <div class="glass-panel p-6 col-span-1 lg:col-span-2">
+            <h3 class="text-lg font-semibold mb-4 text-slate-200">Tendencia de Flujo</h3>
+            <div class="h-64"><canvas id="chartTrend"></canvas></div>
+        </div>
+        <div class="glass-panel p-6 col-span-1">
+            <h3 class="text-lg font-semibold mb-4 text-slate-200">Top Familias (Monto)</h3>
+            <div class="h-64 flex justify-center"><canvas id="chartFamilies"></canvas></div>
+        </div>
+        <div class="glass-panel p-6 col-span-1">
+            <h3 class="text-lg font-semibold mb-4 text-slate-200">Dispersión Bancaria</h3>
+            <div class="h-64 flex justify-center"><canvas id="chartBanks"></canvas></div>
+            <div class="mt-2 text-center border-t border-slate-700 pt-2">
+                <p class="text-xs text-slate-400 uppercase tracking-wide">Total Dispersado</p>
+                <p id="total-dispersado-display" class="text-xl font-bold text-blue-400">$0.00</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-6 glass-panel p-6 animate-fade-in">
+        <h3 class="text-lg font-semibold mb-4 text-slate-200">
+            <i class="fas fa-list-alt mr-2 text-emerald-400"></i>Últimos Movimientos
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-400">
+                <thead class="text-xs uppercase bg-slate-800/50 text-slate-200">
+                    <tr>
+                        <th class="px-4 py-3 rounded-l-lg">Hora</th>
+                        <th class="px-4 py-3">Cliente / Familia</th>
+                        <th class="px-4 py-3">Detalles</th>
+                        <th class="px-4 py-3 text-center">Flujo</th>
+                        <th class="px-4 py-3 text-right">Importe</th>
+                        <th class="px-4 py-3 text-center rounded-r-lg">Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-table-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module">
+        import { GoogleGenerativeAI } from "@google/generative-ai";
+
+        // 🔑 TU API KEY CORRECTA (Proyecto PIZARRAFLC)
+        const API_KEY = "AIzaSyACGyLckDLeUHUTFMwtO1WHfVflKdm5IOE";
+
+        let genAI = null;
+
+        try {
+            genAI = new GoogleGenerativeAI(API_KEY);
+        } catch (e) {
+            console.error("Error inicializando SDK:", e);
+        }
+
+        // FUNCIÓN SEGURA CON SELECTOR DE MODELO
+        async function callGeminiSafe(promptText) {
+            if (!genAI) throw new Error("API Key no configurada o inválida.");
+
+            const selectedModel = document.getElementById('model-selector').value;
+
+            try {
+                const model = genAI.getGenerativeModel({ model: selectedModel });
+                const result = await model.generateContent(promptText);
+                return await result.response;
+            } catch (error) {
+                console.warn(`Error con ${selectedModel}:`, error);
+
+                // Si es 404, significa que la llave no tiene acceso a ese modelo específico
+                if (error.message.includes("404") || error.message.includes("not found")) {
+                    throw new Error(`El modelo ${selectedModel} no respondió. Intenta cambiar a 'Gemini Pro' en el selector.`);
+                }
+                throw error;
+            }
+        }
+
+        window.AIInsights = {
+            currentData: { operations: [], solicitudes: [] },
+            isAnalyzing: false,
+
+            init() {
+                console.log("🧠 Gemini AI Integrado - MODO CFO");
+                this.setupChatUI();
+            },
+
+            updateData(ops, sols) {
+                this.currentData.operations = ops || [];
+                this.currentData.solicitudes = sols || [];
+            },
+
+            setupChatUI() {
+                const chatContainer = document.getElementById('gemini-chat-container');
+                if (!chatContainer) return;
+
+                chatContainer.innerHTML = `
+                    <div class="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                        <div class="flex gap-2">
+                            <input type="text" id="gemini-input" 
+                                class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:border-purple-500 focus:outline-none placeholder-slate-500"
+                                placeholder="Pregunta al CFO Virtual (Ej: ¿Hay riesgos de liquidez?)"
+                                onkeypress="if(event.key === 'Enter') AIInsights.askGemini()">
+                            <button onclick="AIInsights.askGemini()" class="bg-purple-600 hover:bg-purple-500 text-white px-4 rounded transition">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div id="gemini-response" class="mt-2 text-sm text-slate-300 hidden pl-2 border-l-2 border-purple-500 gemini-chat-bubble"></div>
+                    </div>
+                `;
+            },
+
+            async askGemini() {
+                if (!genAI) { alert("Configura la API Key en el código primero."); return; }
+                const input = document.getElementById('gemini-input');
+                const responseDiv = document.getElementById('gemini-response');
+                const question = input.value;
+
+                if (!question) return;
+
+                responseDiv.innerHTML = '<i class="fas fa-circle-notch fa-spin text-purple-400"></i> Analizando contexto financiero...';
+                responseDiv.classList.remove('hidden');
+
+                const context = this.prepareAIContext(this.currentData.operations, this.currentData.solicitudes);
+
+                const prompt = `
+                    Eres un CFO y Auditor Experto. 
+                    CONTEXTO ACTUAL: ${JSON.stringify(context)}.
+                    
+                    PREGUNTA DEL USUARIO: "${question}".
+                    
+                    Responde de forma ejecutiva, breve y directa. Usa negritas para los datos clave.
+                `;
+
+                try {
+                    const response = await callGeminiSafe(prompt);
+                    responseDiv.innerHTML = response.text()
+                        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+                        .replace(/\n/g, '<br>');
+                } catch (error) {
+                    responseDiv.innerHTML = `<span class="text-red-400">Error: ${error.message}</span>`;
+                }
+            },
+
+            prepareAIContext(ops, sols) {
+                const now = new Date();
+                const today = now.toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+                const yesterday = new Date(now - 86400000).toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+
+                // 1. Métricas Básicas
+                const totalMonto = ops.reduce((s, o) => s + parseFloat(o.importe || 0), 0);
+                const cancelados = ops.filter(o => o.status === 'cancelado').length;
+                const tasaRechazo = ops.length > 0 ? (cancelados / ops.length) * 100 : 0;
+
+                // 2. Análisis Temporal (Hora Pico)
+                const hourDistribution = {};
+                ops.forEach(o => {
+                    if (o.hora) {
+                        const h = parseInt(o.hora.split(':')[0]);
+                        hourDistribution[h] = (hourDistribution[h] || 0) + 1;
+                    }
+                });
+                let peakHour = 0, peakCount = 0;
+                for (const h in hourDistribution) {
+                    if (hourDistribution[h] > peakCount) { peakHour = h; peakCount = hourDistribution[h]; }
+                }
+
+                // 3. Concentración
+                const familyTotals = {};
+                ops.forEach(o => {
+                    const f = o.familia || 'Otros';
+                    familyTotals[f] = (familyTotals[f] || 0) + parseFloat(o.importe || 0);
+                });
+                const topFamilyEntry = Object.entries(familyTotals).sort((a, b) => b[1] - a[1])[0];
+                const concentrationRisk = topFamilyEntry ? (topFamilyEntry[1] / totalMonto * 100).toFixed(1) : 0;
+
+                // 4. Dispersión
+                let totalDispersed = 0;
+                sols.forEach(s => s.dispersiones?.forEach(d => totalDispersed += parseFloat(d.monto || 0)));
+                const conversionRate = totalMonto > 0 ? (totalDispersed / totalMonto * 100).toFixed(1) : 0;
+
+                // 5. Anomalías
+                const avgTicket = ops.length > 0 ? totalMonto / ops.length : 0;
+                const anomalies = ops.filter(o => parseFloat(o.importe) > avgTicket * 3);
+
+                // 6. Duplicados (lógica simple: mismo solicitante, mismo monto aprox, misma hora)
+                const duplicates = [];
+                for (let i = 0; i < ops.length; i++) {
+                    for (let j = i + 1; j < ops.length; j++) {
+                        if (ops[i].solicitante === ops[j].solicitante &&
+                            Math.abs(parseFloat(ops[i].importe) - parseFloat(ops[j].importe)) < 5 &&
+                            ops[i].hora?.split(':')[0] === ops[j].hora?.split(':')[0]) {
+                            duplicates.push(ops[i]);
+                            break;
+                        }
+                    }
+                }
+
+                // 7. Comparativa Ayer (Simplificado)
+                // Usamos ops como volumen actual.
+
+                // 8. Latencia Operativa (Tiempo Ciclo)
+                let totalMinutes = 0;
+                let countedOps = 0;
+
+                ops.forEach(o => {
+                    if (['completado', 'conciliado'].includes(o.status)) {
+                        const sol = sols.find(s => s.operacionId === o.id);
+                        if (sol && sol.completadoTimestamp && o.fecha && o.hora) {
+                            try {
+                                // op.fecha is YYYY-MM-DD, op.hora is HH:MM
+                                // We assume system local time consistency for calculation or approx
+                                const start = new Date(`${o.fecha}T${o.hora}:00`);
+                                const end = new Date(sol.completadoTimestamp);
+                                const diffMs = end - start;
+                                const diffMins = diffMs / 60000;
+
+                                // Filter valid positive durations (and ignore huge outliers > 1 month)
+                                if (diffMins > 0 && diffMins < 43200) {
+                                    totalMinutes += diffMins;
+                                    countedOps++;
+                                }
+                            } catch (e) { console.warn("Date parse error in latency calc", e); }
+                        }
+                    }
+                });
+                const avgLatency = countedOps > 0 ? Math.round(totalMinutes / countedOps) : 0;
+
+                // 9. Status Logístico
+                const opsEnRuta = sols.filter(s => s.status === 'autorizado' && s.conteoTimestamp).length;
+                const rutasDemoradas = sols.filter(s => {
+                    if (s.status === 'autorizado' && s.conteoTimestamp) {
+                        return (now - new Date(s.conteoTimestamp)) > (4 * 3600 * 1000);
+                    }
+                    return false;
+                }).length;
+                const opsEntregadas = sols.filter(s => ['completado', 'conciliado'].includes(s.status)).length;
+
+                return {
+                    totalOperaciones: ops.length,
+                    totalMonto: totalMonto.toFixed(2),
+                    montoPromedio: avgTicket.toFixed(2),
+                    tasaRechazo: tasaRechazo.toFixed(1),
+                    horaPico: `${peakHour}:00 (${peakCount} ops)`,
+                    familiaTop: topFamilyEntry ? topFamilyEntry[0] : 'N/A',
+                    concentracionRiesgo: concentrationRisk,
+                    tasaConversion: conversionRate,
+                    totalDispersado: totalDispersed.toFixed(2),
+                    operacionesAnormales: anomalies.length,
+                    posiblesDuplicados: duplicates.length,
+                    proveedorFrecuente: this.getTopProvider(ops),
+                    latenciaPromedioMinutos: avgLatency,
+                    operacionesEnRuta: opsEnRuta,
+                    rutasDemoradas: rutasDemoradas,
+                    operacionesEntregadas: opsEntregadas,
+                    muestrasCriticas: ops
+                        .filter(o => parseFloat(o.importe) > 50000 || o.status === 'cancelado' || parseFloat(o.importe) > avgTicket * 3)
+                        .slice(0, 10)
+                        .map(o => ({ proveedor: o.solicitante, monto: o.importe, status: o.status, familia: o.familia, hora: o.hora }))
+                };
+            },
+
+            getTopProvider(ops) {
+                const providers = {};
+                ops.forEach(o => { providers[o.solicitante] = (providers[o.solicitante] || 0) + 1; });
+                const top = Object.entries(providers).sort((a, b) => b[1] - a[1])[0];
+                return top ? `${top[0]} (${top[1]} ops)` : 'N/A';
+            },
+
+            async refreshInsights() {
+                if (!genAI) {
+                    document.getElementById('ai-insights-container').innerHTML = '<div class="text-amber-400 text-center py-4">⚠️ API Key inválida.</div>';
+                    return;
+                }
+
+                if (this.isAnalyzing || this.currentData.operations.length === 0) return;
+
+                this.isAnalyzing = true;
+                const container = document.getElementById('ai-insights-container');
+                container.innerHTML = `
+                    <div class="text-center py-4">
+                        <div class="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-purple-500 mb-2"></div>
+                        <p class="text-sm text-slate-400">CFO Virtual auditando operaciones...</p>
+                    </div>
+                `;
+
+                const context = this.prepareAIContext(this.currentData.operations, this.currentData.solicitudes);
+
+                const prompt = `
+                    🎯 ROL: Eres un CFO (Director Financiero) y Auditor de Riesgos.
+
+                    📊 CONTEXTO:
+                    - Total Ops: ${context.totalOperaciones} ($${context.totalMonto})
+                    - Ticket Prom: $${context.montoPromedio}
+                    - Rechazos: ${context.tasaRechazo}%
+                    - Hora Pico: ${context.horaPico}
+                    - Concentración: ${context.familiaTop} (${context.concentracionRiesgo}%)
+                    - Conversión (Sol->Disp): ${context.tasaConversion}%
+                    - Anomalías (>3x prom): ${context.operacionesAnormales}
+                    - Posibles Duplicados: ${context.posiblesDuplicados}
+                    - Proveedor Frecuente: ${context.proveedorFrecuente}
+                    - ⏱️ Latencia Promedio (Solicitud->Pago): ${context.latenciaPromedioMinutos} minutos
+                    - 🚚 Logística: ${context.operacionesEnRuta} En Ruta, ${context.operacionesEntregadas} Entregadas
+
+                    🔍 CRÍTICAS (Muestra):
+                    ${JSON.stringify(context.muestrasCriticas)}
+
+                    TU MISIÓN (3 INSIGHTS EJECUTIVOS):
+                    Prioriza: 
+                    1. RIESGOS (Concentración >70%, Rechazos >15%, Duplicados, Anomalías)
+                    2. EFICIENCIA (Cuellos de botella si Latencia > 60min, Sobrecarga)
+                    3. OPORTUNIDADES
+
+                    FORMATO JSON Array:
+                    [{"type": "warning|danger|success|info|opportunity", "title": "...", "message": "...", "priority": "high|medium|low", "metric": "..."}]
+                `;
+
+                try {
+                    const response = await callGeminiSafe(prompt);
+                    let text = response.text().replace(/```json|```/g, '').trim();
+                    // Limpieza de posibles caracteres extra al inicio/fin
+                    if (text.startsWith('\`\`\`json')) text = text.replace('\`\`\`json', '');
+                    if (text.endsWith('\`\`\`')) text = text.replace('\`\`\`', '');
+
+                    const insights = JSON.parse(text);
+                    this.renderInsights(insights);
+
+                    document.getElementById('last-analysis-time').textContent = new Date().toLocaleTimeString();
+                    document.getElementById('ai-stats').classList.remove('hidden');
+
+                } catch (error) {
+                    console.error("Gemini Error:", error);
+                    container.innerHTML = `<div class="text-center text-red-400 text-sm py-2">Error de Análisis: ${error.message}</div>`;
+                } finally {
+                    this.isAnalyzing = false;
+                }
+            },
+
+            renderInsights(insights) {
+                const container = document.getElementById('ai-insights-container');
+                if (!insights || insights.length === 0) {
+                    container.innerHTML = '<div class="text-center text-slate-500 py-4"><i class="fas fa-check-circle text-emerald-500 mr-2"></i>Operación sin novedades críticas.</div>';
+                    return;
+                }
+
+                const colors = {
+                    'danger': { border: 'border-red-500', bg: 'bg-red-900/10', icon: 'fa-exclamation-circle text-red-500', ring: 'hover:ring-red-500/30' },
+                    'warning': { border: 'border-amber-500', bg: 'bg-amber-900/10', icon: 'fa-exclamation-triangle text-amber-500', ring: 'hover:ring-amber-500/30' },
+                    'success': { border: 'border-emerald-500', bg: 'bg-emerald-900/10', icon: 'fa-check-circle text-emerald-500', ring: 'hover:ring-emerald-500/30' },
+                    'opportunity': { border: 'border-blue-500', bg: 'bg-blue-900/10', icon: 'fa-lightbulb text-blue-500', ring: 'hover:ring-blue-500/30' },
+                    'info': { border: 'border-slate-500', bg: 'bg-slate-800/50', icon: 'fa-info-circle text-slate-400', ring: 'hover:ring-slate-500/30' }
+                };
+
+                container.innerHTML = insights.map(i => {
+                    const c = colors[i.type] || colors['info'];
+                    const priorityHtml = i.priority === 'high'
+                        ? '<span class="px-2 py-[2px] rounded text-[10px] font-bold bg-red-500/20 text-red-300 border border-red-500/50">ALTO</span>'
+                        : (i.priority === 'medium' ? '<span class="px-2 py-[2px] rounded text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/50">MEDIO</span>' : '');
+
+                    return `
+                    <div class="${c.bg} ${c.border} p-3 rounded-lg border-l-4 transition-all duration-300 transform hover:-translate-y-1 hover:ring-2 ${c.ring} animate-fade-in mb-3">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2 mb-1">
+                                <i class="fas ${c.icon}"></i>
+                                <h4 class="font-bold text-slate-200 text-sm">${i.title}</h4>
+                            </div>
+                            ${priorityHtml}
+                        </div>
+                        <p class="text-xs text-slate-400 pl-6 leading-relaxed">${i.message}</p>
+                        ${i.metric ? `<div class="mt-2 pl-6"><span class="inline-block px-2 py-1 rounded-md bg-slate-950/50 border border-slate-700/50 text-[10px] font-mono text-slate-300"><i class="fas fa-chart-pie mr-1 text-slate-500"></i> ${i.metric}</span></div>` : ''}
+                    </div>
+                    `;
+                }).join('');
+            }
+        };
+
+        // Forzar inicialización segura
+        if (document.readyState === 'complete') {
+            window.AIInsights.init();
+        } else {
+            window.addEventListener('load', () => window.AIInsights.init());
+        }
+    </script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0j20ZXdcfVioRAfkJn6Uyn_Q2A6blYkI",
+            authDomain: "pizarraflc.appspot.com",
+            projectId: "pizarraflc",
+            storageBucket: "pizarraflc.firebasestorage.app",
+            messagingSenderId: "108471728011",
+            appId: "1:108471728011:web:c0a83b710b37d72c21e18e",
+            measurementId: "G-SJZW3G2P79"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let chartTrendInstance = null;
+        let chartFamiliesInstance = null;
+        let chartBankInstance = null;
+        // let chartFunnelInstance = null; // Stored in object
+        // let chartHeatmapInstance = null;
+        let currentDaysFilter = 0;
+
+        const DashboardApp = {
+            ops: [],
+            sols: [],
+            rawOps: [], // Store raw data for filtering
+            rawSols: [],
+            unsubscribeOps: null,
+            unsubscribeSols: null,
+            filters: { familia: 'all', status: 'all' },
+
+            init() {
+                console.log("🚀 Dashboard Ejecutivo Iniciado");
+                this.listenToData(currentDaysFilter);
+                setInterval(() => {
+                    document.getElementById('last-update').textContent = `Actualizado: ${new Date().toLocaleTimeString()}`;
+                }, 1000);
+            },
+
+            setFilter(days) {
+                currentDaysFilter = days;
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg');
+                    btn.classList.add('text-slate-300');
+                    if (btn.textContent.includes(days === 0 ? "Hoy" : days === 7 ? "7" : "Mes")) {
+                        btn.classList.add('bg-blue-600', 'text-white', 'shadow-lg');
+                        btn.classList.remove('text-slate-300');
+                    }
+                });
+                this.listenToData(days);
+            },
+
+            listenToData(days) {
+                // 1. Limpiar escuchas anteriores
+                if (this.unsubscribeOps) this.unsubscribeOps();
+                if (this.unsubscribeSols) this.unsubscribeSols();
+
+                // Limpiar datos visualmente (opcional)
+                this.ops = [];
+                this.sols = [];
+
+                const d = new Date();
+                d.setDate(d.getDate() - days);
+                // Fix: Usar fecha local en lugar de UTC para evitar cambio de día a las 5 PM
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+
+                // 2. Escuchar Operaciones
+                this.unsubscribeOps = db.collection('operaciones')
+                    .where('fecha', '>=', dateStr)
+                    .onSnapshot(snapshot => {
+                        this.rawOps = snapshot.docs.map(doc => doc.data());
+                        this.populateFilters(); // Update dropdowns based on new data
+                        this.applyDrillDown();
+                    });
+
+                // 3. Escuchar Solicitudes (Independiente)
+                this.unsubscribeSols = db.collection('solicitudes')
+                    .onSnapshot(snap => {
+                        this.rawSols = snap.docs.map(d => d.data());
+                        this.applyDrillDown();
+                    });
+            },
+
+            populateFilters() {
+                const famSelect = document.getElementById('filter-familia');
+                const existing = new Set(Array.from(famSelect.options).map(o => o.value));
+
+                const familias = [...new Set(this.rawOps.map(o => o.familia || "Otros"))].sort();
+
+                familias.forEach(f => {
+                    if (!existing.has(f)) {
+                        const opt = document.createElement('option');
+                        opt.value = f;
+                        opt.textContent = f;
+                        famSelect.appendChild(opt);
+                    }
+                });
+            },
+
+            applyDrillDown() {
+                this.filters.familia = document.getElementById('filter-familia').value;
+                this.filters.status = document.getElementById('filter-status').value;
+
+                let filteredOps = this.rawOps;
+                let filteredSols = this.rawSols;
+
+                // Apply Logic Filters
+                if (this.filters.familia !== 'all') {
+                    filteredOps = filteredOps.filter(o => (o.familia || 'Otros') === this.filters.familia);
+                }
+
+                if (this.filters.status !== 'all') {
+                    // Mapping generic status for filter simplification
+                    if (this.filters.status === 'completado') filteredOps = filteredOps.filter(o => ['completado', 'conciliado'].includes(o.status));
+                    else if (this.filters.status === 'autorizado') filteredOps = filteredOps.filter(o => ['autorizado'].includes(o.status));
+                    else if (this.filters.status === 'pendiente') filteredOps = filteredOps.filter(o => !['cancelado', 'completado', 'conciliado', 'autorizado'].includes(o.status));
+                }
+
+                // Date Filter logic inside refreshDashboard needs to use this filtered data
+                // To keep it simple, we pass filtered data to refreshDashboard logic directly or update 'this.ops'
+                this.ops = filteredOps;
+                this.sols = filteredSols; // Sols filtering might be more complex linking to Ops, keeping simple for now
+
+                // Re-trigger visual update
+                this.refreshDashboard();
+            },
+
+            refreshDashboard() {
+                // Determine Date Range from current filter
+                // We actually handled date query in Firestore, so rawOps is already time-bounded.
+                // Just need to ensure Solicitudes match too.
+                // And pass 'this.ops' to update.
+
+                // Correction: The original 'refreshDashboard' had a dateStr argument which isn't available here in DrillDown easily.
+                // We'll calculate dateStr again or store it.
+                // Simplification for prototype: Use 'this.ops' directly as they are already filtered by Date in Firestore.
+
+                // Filter Solicitudes to match displayed Ops or Date
+                // We can just pass all sols to updateDashboard, or filter them.
+                // Let's filter sols by date to be safe.
+                const d = new Date(); d.setDate(d.getDate() - currentDaysFilter);
+
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+
+                const relevantSols = this.sols.filter(s => {
+                    const fechaRef = s.fecha || (s.completadoTimestamp ? s.completadoTimestamp.split('T')[0] : null);
+                    return fechaRef && fechaRef >= dateStr;
+                });
+
+                this.updateDashboard(this.ops, relevantSols);
+            },
+
+            updateDashboard(ops, allSolicitudes) {
+                const totalMonto = ops.reduce((sum, op) => sum + parseFloat(op.importe || 0), 0);
+                const activas = ops.filter(op => op.status !== 'cancelado');
+                const completadas = ops.filter(op => ['completado', 'conciliado', 'autorizado'].includes(op.status));
+
+                document.getElementById("kpi-count").innerText = ops.length;
+                document.getElementById("kpi-total").textContent = totalMonto.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+                document.getElementById("kpi-pending").textContent = (activas.reduce((s, o) => s + parseFloat(o.importe), 0) - completadas.reduce((s, o) => s + parseFloat(o.importe), 0)).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+
+                let totalDisp = 0;
+                allSolicitudes.forEach(s => s.dispersiones?.forEach(d => totalDisp += parseFloat(d.monto || 0)));
+                document.getElementById("kpi-dispersed").textContent = totalDisp.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+                document.getElementById("total-dispersado-display").textContent = totalDisp.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+
+                this.renderTrendChart(ops);
+                this.renderFamilyChart(ops);
+                this.renderBankChart(allSolicitudes);
+
+                // NEW: Mission Control Renderers
+                this.renderFunnelChart(ops, allSolicitudes);
+                this.renderHeatmap(ops);
+                this.renderHeatmap(ops);
+                this.checkRiskRules(ops, allSolicitudes);
+
+                this.updateRecentTable(ops, allSolicitudes);
+
+                if (window.AIInsights) {
+                    window.AIInsights.updateData(ops, allSolicitudes);
+                    if (this.aiTimeout) clearTimeout(this.aiTimeout);
+                    this.aiTimeout = setTimeout(() => window.AIInsights.refreshInsights(), 3000);
+                }
+            },
+
+            // --- NEW METRICS IMPLEMENTATION ---
+
+            checkRiskRules(ops, sols = []) {
+                const alerts = [];
+
+                // 1. Tasa de Rechazo
+                const total = ops.length;
+                const cancelados = ops.filter(o => o.status === 'cancelado').length;
+                const rate = total > 0 ? (cancelados / total) * 100 : 0;
+                if (rate > 15) {
+                    alerts.push({ level: 'danger', icon: 'fa-ban', title: 'Tasa de Rechazo Alta', msg: `El ${rate.toFixed(1)}% de las operaciones han sido canceladas.` });
+                }
+
+                // 2. Concentración
+                const fams = {};
+                let totalAmt = 0;
+                ops.forEach(o => {
+                    const amt = parseFloat(o.importe || 0);
+                    fams[o.familia] = (fams[o.familia] || 0) + amt;
+                    totalAmt += amt;
+                });
+
+                for (const fam in fams) {
+                    if (fams[fam] > totalAmt * 0.70 && totalAmt > 0) {
+                        alerts.push({ level: 'warning', icon: 'fa-chart-pie', title: 'Riesgo de Concentración', msg: `La familia '${fam}' consume el 70%+ del presupuesto.` });
+                    }
+                }
+
+                // 3. Pendientes Críticos (>50k)
+                const criticos = ops.filter(o => parseFloat(o.importe || 0) > 50000 && !['autorizado', 'completado', 'conciliado', 'cancelado'].includes(o.status));
+                if (criticos.length > 0) {
+                    alerts.push({ level: 'danger', icon: 'fa-exclamation-circle', title: 'Montos Críticos Pendientes', msg: `${criticos.length} operaciones mayores a $50k requieren atención inmediata.` });
+                }
+
+                // 4. Riesgo de Ruta (Logística)
+                const now = new Date();
+                let delayedRoutes = 0;
+                let criticalRoutes = 0;
+
+                sols.forEach(s => {
+                    if (s.conteoTimestamp && !['completado', 'conciliado'].includes(s.status)) {
+                        const start = new Date(s.conteoTimestamp);
+                        const diffHours = (now - start) / 36e5; // ms to hours
+                        if (diffHours > 8) criticalRoutes++;
+                        else if (diffHours > 4) delayedRoutes++;
+                    }
+                });
+
+                if (criticalRoutes > 0) {
+                    alerts.push({ level: 'danger', icon: 'fa-truck-loading', title: 'Ruta Crítica', msg: `${criticalRoutes} entregas tienen más de 8 horas en tránsito.` });
+                } else if (delayedRoutes > 0) {
+                    alerts.push({ level: 'warning', icon: 'fa-shipping-fast', title: 'Demora en Ruta', msg: `${delayedRoutes} entregas superan las 4 horas de tránsito.` });
+                }
+
+                this.renderRiskPanel(alerts);
+            },
+
+            renderRiskPanel(alerts) {
+                const panel = document.getElementById('risk-monitor-panel');
+                if (alerts.length === 0) {
+                    panel.innerHTML = `
+                        <div class="glass-panel p-3 border-l-4 border-emerald-500 flex items-center justify-between">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-shield-alt text-emerald-400 text-xl"></i>
+                                <div>
+                                    <h4 class="font-bold text-emerald-400 text-sm">Salud Operativa Óptima</h4>
+                                    <p class="text-xs text-slate-400">No se detectaron riesgos activos en las reglas determinísticas.</p>
+                                </div>
+                            </div>
+                        </div>`;
+                    panel.classList.remove('hidden');
+                    return;
+                }
+
+                panel.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-${alerts.length > 3 ? 3 : alerts.length} gap-4">
+                        ${alerts.map(a => `
+                            <div class="glass-panel p-3 border-l-4 ${a.level === 'danger' ? 'border-red-500 bg-red-900/10' : 'border-amber-500 bg-amber-900/10'} flex items-center gap-3">
+                                <i class="fas ${a.icon} ${a.level === 'danger' ? 'text-red-500' : 'text-amber-500'} text-xl"></i>
+                                <div>
+                                    <h4 class="font-bold ${a.level === 'danger' ? 'text-red-400' : 'text-amber-400'} text-sm">${a.title}</h4>
+                                    <p class="text-xs text-slate-300 font-medium">${a.msg}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                panel.classList.remove('hidden');
+            },
+
+            renderFunnelChart(ops, sols) {
+                const ctx = document.getElementById('chartFunnel').getContext('2d');
+
+                const solicitado = ops.reduce((s, o) => s + parseFloat(o.importe || 0), 0);
+                const autorizado = ops.filter(o => ['autorizado', 'completado', 'conciliado'].includes(o.status))
+                    .reduce((s, o) => s + parseFloat(o.importe || 0), 0);
+
+                // Dispersado Real (from Solicitudes dispersiones)
+                let dispersado = 0;
+                sols.forEach(s => s.dispersiones?.forEach(d => dispersado += parseFloat(d.monto || 0)));
+
+                if (this.chartFunnelInstance) this.chartFunnelInstance.destroy();
+
+                this.chartFunnelInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Solicitado', 'Autorizado', 'Dispersado'],
+                        datasets: [{
+                            label: 'Volumen (MXN)',
+                            data: [solicitado, autorizado, dispersado],
+                            backgroundColor: ['#60a5fa', '#a78bfa', '#34d399'],
+                            borderRadius: 6,
+                            barPercentage: 0.6
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y', // Horizontal funnel-like
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: '#94a3b8',
+                                    callback: v => '$' + v.toLocaleString('es-MX', { notation: 'compact' })
+                                }
+                            },
+                            y: { ticks: { color: '#e2e8f0', font: { weight: 'bold' } } }
+                        }
+                    }
+                });
+            },
+
+            renderHeatmap(ops) {
+                const ctx = document.getElementById('chartHeatmap').getContext('2d');
+
+                // Group by Hour (00-23)
+                const hours = new Array(24).fill(0);
+                ops.forEach(op => {
+                    if (op.hora) {
+                        const h = parseInt(op.hora.split(':')[0]);
+                        if (!isNaN(h)) hours[h]++;
+                    }
+                });
+
+                // Filter active hours only (e.g., 8am to 8pm to clean up) or show all if relevant
+                const activeHoursLabels = [];
+                const activeHoursData = [];
+                const bgColors = [];
+
+                for (let i = 7; i <= 20; i++) { // Show 7am to 8pm typical viz
+                    activeHoursLabels.push(`${i}:00`);
+                    const val = hours[i] || 0;
+                    activeHoursData.push(val);
+                    // Logic Heatmap Color Intensity
+                    const alpha = val > 0 ? Math.min(0.2 + (val / 10), 0.9) : 0.1;
+                    bgColors.push(`rgba(244, 63, 94, ${alpha})`); // Rose color
+                }
+
+                if (this.chartHeatmapInstance) this.chartHeatmapInstance.destroy();
+
+                this.chartHeatmapInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: activeHoursLabels,
+                        datasets: [{
+                            label: 'Operaciones',
+                            data: activeHoursData,
+                            backgroundColor: bgColors,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                            x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                        }
+                    }
+                });
+            },
+
+            renderTrendChart(ops) {
+                const ctx = document.getElementById('chartTrend').getContext('2d');
+                const grouped = {};
+
+                // Logic based on filter
+                if (currentDaysFilter === 0) {
+                    // Hourly view for "Today"
+                    ops.forEach(op => {
+                        // Ensure we have a time, default to something if missing, though ops usually have 'hora'
+                        const hour = op.hora ? op.hora.split(':')[0] + ':00' : 'N/A';
+                        grouped[hour] = (grouped[hour] || 0) + parseFloat(op.importe || 0);
+                    });
+                } else {
+                    // Daily view for other filters
+                    ops.forEach(op => {
+                        grouped[op.fecha] = (grouped[op.fecha] || 0) + parseFloat(op.importe || 0);
+                    });
+                }
+
+                const labels = Object.keys(grouped).sort();
+                if (chartTrendInstance) chartTrendInstance.destroy();
+                chartTrendInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{ label: 'Volumen', data: labels.map(l => grouped[l]), borderColor: '#34d399', backgroundColor: 'rgba(52, 211, 153, 0.1)', fill: true, tension: 0.4 }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function (context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) label += ': ';
+                                        if (context.parsed.y !== null) {
+                                            label += new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(context.parsed.y);
+                                        }
+                                        return label;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { grid: { display: false }, ticks: { color: '#94a3b8' } },
+                            y: {
+                                grid: { color: '#334155' },
+                                ticks: {
+                                    color: '#94a3b8',
+                                    callback: function (value) {
+                                        return '$' + value.toLocaleString('es-MX', { compactDisplay: 'short', notation: 'compact' });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            },
+
+            renderFamilyChart(ops) {
+                const ctx = document.getElementById('chartFamilies').getContext('2d');
+                const grouped = {};
+                ops.forEach(op => { const f = (op.familia || 'Otros').toUpperCase(); grouped[f] = (grouped[f] || 0) + parseFloat(op.importe); });
+                const sorted = Object.keys(grouped).sort((a, b) => grouped[b] - grouped[a]).slice(0, 5);
+                if (chartFamiliesInstance) chartFamiliesInstance.destroy();
+                chartFamiliesInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: sorted, datasets: [{ data: sorted.map(s => grouped[s]), backgroundColor: '#f59e0b', borderRadius: 4 }] },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: '#94a3b8',
+                                    callback: function (value) {
+                                        return '$' + value.toLocaleString('es-MX', { compactDisplay: 'short', notation: 'compact' });
+                                    }
+                                }
+                            },
+                            y: { ticks: { color: '#e2e8f0', font: { size: 10 } } }
+                        }
+                    }
+                });
+            },
+
+            renderBankChart(sols) {
+                const ctx = document.getElementById('chartBanks').getContext('2d');
+                const totals = {};
+                sols.forEach(s => s.dispersiones?.forEach(d => { const b = (d.fuente || d.banco || 'Otros').toUpperCase(); totals[b] = (totals[b] || 0) + parseFloat(d.monto); }));
+                const sorted = Object.keys(totals).sort((a, b) => totals[b] - totals[a]);
+                if (chartBankInstance) chartBankInstance.destroy();
+                chartBankInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels: sorted, datasets: [{ data: sorted.map(s => totals[s]), backgroundColor: '#3b82f6', borderRadius: 4 }] },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: {
+                                ticks: {
+                                    color: '#94a3b8',
+                                    callback: function (value) {
+                                        return '$' + value.toLocaleString('es-MX', { compactDisplay: 'short', notation: 'compact' });
+                                    }
+                                }
+                            },
+                            y: { ticks: { color: '#e2e8f0', font: { size: 10 } } }
+                        }
+                    }
+                });
+            },
+
+            updateRecentTable(ops, sols) {
+                const sorted = [...ops].sort((a, b) => new Date(b.fecha + 'T' + (b.hora || '00:00')) - new Date(a.fecha + 'T' + (a.hora || '00:00')));
+                document.getElementById('recent-table-body').innerHTML = sorted.map(op => {
+                    const sol = sols.find(s => s.operacionId === op.id);
+                    const statusSol = sol ? sol.status : 'pre-orden';
+
+                    const isPreorden = ['pre-orden', 'orden', 'pre-autorizado', 'autorizado', 'completado', 'conciliado'].includes(statusSol);
+                    const isOrden = ['orden', 'pre-autorizado', 'autorizado', 'completado', 'conciliado'].includes(statusSol);
+                    const isPreAutorizado = ['pre-autorizado', 'autorizado', 'completado', 'conciliado'].includes(statusSol);
+                    const isAutorizado = ['autorizado', 'completado', 'conciliado'].includes(statusSol);
+                    const isCompletado = ['completado', 'conciliado'].includes(statusSol);
+                    const isConciliado = statusSol === 'conciliado';
+
+                    // LÓGICA DE ESTADO EXTENDIDA (En Ruta / Entregado)
+                    let statusDisplay = statusSol;
+                    let statusClass = 'text-slate-500';
+
+                    if (sol) {
+                        if (sol.status === 'conciliado') {
+                            statusDisplay = 'CONCILIADO';
+                            statusClass = 'text-violet-400 font-bold';
+                        } else if (sol.status === 'completado') {
+                            statusDisplay = 'ENTREGADO';
+                            statusClass = 'text-emerald-400 font-bold';
+                        } else if (sol.conteoTimestamp) {
+                            statusDisplay = 'EN RUTA';
+                            statusClass = 'text-blue-400 font-bold';
+                        }
+                    }
+
+                    const progressBar = `
+                        <div class="mini-progress-bar mx-auto" title="${statusSol}">
+                            <div class="mini-progress-segment bg-amber-500" style="opacity: ${isPreorden ? 1 : 0.2}"></div>
+                            <div class="mini-progress-segment bg-orange-500" style="opacity: ${isOrden ? 1 : 0.2}"></div>
+                            <div class="mini-progress-segment bg-purple-500" style="opacity: ${isPreAutorizado ? 1 : 0.2}"></div>
+                            <div class="mini-progress-segment bg-blue-500" style="opacity: ${isAutorizado ? 1 : 0.2}"></div>
+                            <div class="mini-progress-segment bg-emerald-500" style="opacity: ${isCompletado ? 1 : 0.2}"></div>
+                            <div class="mini-progress-segment bg-violet-500" style="opacity: ${isConciliado ? 1 : 0.2}"></div>
+                        </div>
+                    `;
+
+                    return `
+                    <tr class="border-b border-slate-700/50 hover:bg-slate-800/50">
+                        <td class="px-4 py-3 font-mono text-xs text-slate-500">${op.hora || '--'}</td>
+                        <td class="px-4 py-3 font-semibold text-slate-200">${op.solicitante}<span class="block text-xs font-normal text-slate-500">${op.familia || 'General'}</span></td>
+                        <td class="px-4 py-3 text-xs text-blue-300">${op.tipo_operacion || 'N/A'}</td>
+                        <td class="px-4 py-3 text-center">
+                            ${progressBar}
+                            <span class="text-[9px] uppercase mt-1 block ${statusClass}">${statusDisplay}</span>
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-emerald-400 font-bold">$${parseFloat(op.importe).toLocaleString()}</td>
+                        <td class="px-4 py-3 text-center"><span class="px-2 py-1 rounded text-xs ${op.status === 'cancelado' ? 'bg-red-900 text-red-300' : 'bg-emerald-900 text-emerald-300'}">${op.status}</span></td>
+                    </tr>`;
+                }).join('');
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => DashboardApp.init());
+    </script>
+</body>
+
+</html>

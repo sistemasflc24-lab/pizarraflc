@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Admin Pizarra App</title>
+
+    <link rel="manifest" href="manifest.json">
+
+    <link rel="icon" type="image/png" href="FLC original.png">
+    <link rel="apple-touch-icon" href="FLC original.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+
+    <style>
+        body {
+            background-color: #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            z-index: 50;
+        }
+
+        /* Animaciones */
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .new-item {
+            animation: slideIn 0.5s ease-out;
+            border-left: 4px solid #3b82f6;
+        }
+
+        /* Login Overlay */
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: #f1f5f9;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+    </style>
+</head>
+
+<body class="pb-20">
+
+    <div id="login-overlay">
+        <img src="FLC original.png" alt="Logo" class="w-24 mb-6 rounded-full shadow-lg">
+        <h2 class="text-2xl font-bold text-slate-800 mb-1">Bienvenido</h2>
+        <p class="text-slate-500 mb-8 text-sm">Acceso Administrativo</p>
+
+        <div class="w-full max-w-sm space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Usuario (ID Operador)</label>
+                <input type="text" id="login-user"
+                    class="w-full p-3 rounded-lg border border-slate-300 focus:border-blue-600 outline-none bg-white"
+                    placeholder="Ej: adm01">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
+                <input type="password" id="login-pass"
+                    class="w-full p-3 rounded-lg border border-slate-300 focus:border-blue-600 outline-none bg-white"
+                    placeholder="******">
+            </div>
+            <button onclick="handleLogin()" id="btn-login"
+                class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg shadow-lg active:scale-95 transition-transform">
+                Iniciar Sesión
+            </button>
+            <p id="login-error"
+                class="text-red-500 text-center text-sm hidden bg-red-100 p-2 rounded border border-red-200"></p>
+        </div>
+    </div>
+
+    <header class="bg-slate-800 text-white p-4 sticky top-0 z-40 shadow-md flex justify-between items-center">
+        <div>
+            <h1 class="text-lg font-bold">Centro de Mando</h1>
+            <div class="flex items-center gap-2">
+                <p class="text-xs text-slate-400">Administración Móvil</p>
+                <span id="app-version"
+                    class="inline-flex items-center rounded-full border border-slate-600 px-2 py-0.5 text-[10px] font-bold tracking-wide text-slate-300">
+                    v--
+                </span>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <button onclick="handleLogout()" class="text-gray-400 hover:text-white transition-colors">
+                <i class="fas fa-sign-out-alt text-lg"></i>
+            </button>
+            <div id="connection-status" class="w-3 h-3 rounded-full bg-red-500 transition-colors"></div>
+        </div>
+    </header>
+
+    <div id="admin-view-toggle" class="hidden bg-white border-b border-slate-200 px-4 py-3">
+        <div class="grid grid-cols-2 gap-2 max-w-md mx-auto">
+            <button onclick="setAdminViewMode('PENDIENTES')" id="admin-view-pendientes"
+                class="rounded-full px-4 py-2 text-xs font-bold transition-colors bg-slate-800 text-white shadow-sm">
+                Pendientes
+            </button>
+            <button onclick="setAdminViewMode('COMPLETADOS')" id="admin-view-completados"
+                class="rounded-full px-4 py-2 text-xs font-bold transition-colors bg-slate-100 text-slate-500 border border-slate-200">
+                Completados
+            </button>
+        </div>
+    </div>
+
+    <!-- TABS DE FILTRO -->
+    <div id="filter-tabs" class="flex bg-white shadow-sm sticky top-[72px] z-30 hidden transition-all">
+        <button onclick="setFilter('HOY')" id="tab-hoy"
+            class="flex-1 py-3 text-xs font-bold border-b-4 border-slate-800 text-slate-800 transition-colors">HOY</button>
+        <button onclick="setFilter('AYER')" id="tab-ayer"
+            class="flex-1 py-3 text-xs font-bold border-b-4 border-transparent text-gray-400 hover:text-gray-600 transition-colors">AYER</button>
+        <button onclick="setFilter(getThirdFilterValue())" id="tab-todos"
+            class="flex-1 py-3 text-xs font-bold border-b-4 border-transparent text-gray-400 hover:text-gray-600 transition-colors">TODOS</button>
+    </div>
+
+    <div id="requests-container" class="p-4 space-y-4">
+        <p class="text-center text-gray-400 mt-10 animate-pulse">Esperando conexión...</p>
+    </div>
+
+    <button id="btn-enable-notif" class="fab bg-blue-600 text-white hidden" onclick="requestNotificationPermission()">
+        <i class="fas fa-bell"></i>
+    </button>
+
+    <div id="pin-modal" class="fixed inset-0 bg-black/80 hidden z-[60] flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl p-6 w-full max-w-sm text-center">
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Autorizar</h3>
+            <p class="text-sm text-gray-500 mb-4">Ingresa el PIN de seguridad</p>
+            <input type="password" id="pin-input" maxlength="6"
+                class="w-full text-center text-2xl tracking-[0.5em] border-b-2 border-slate-300 focus:border-blue-600 outline-none py-2 mb-6"
+                placeholder="******">
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="closePinModal()" class="py-3 text-slate-600 font-medium">Cancelar</button>
+                <button onclick="confirmAuthorize()"
+                    class="py-3 bg-slate-800 text-white rounded-lg font-bold">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Flujo y Detalles -->
+    <div id="flow-modal"
+        class="fixed inset-0 bg-black/80 hidden z-[55] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity duration-300">
+        <div id="flow-modal-content"
+            class="bg-white w-full max-w-md h-[85vh] sm:h-auto sm:rounded-xl rounded-t-2xl p-6 overflow-y-auto transform transition-transform duration-300 translate-y-full sm:translate-y-0 relative">
+
+            <button onclick="closeFlowModal()"
+                class="absolute top-4 right-4 text-slate-400 hover:text-red-500 bg-slate-100 p-2 rounded-full w-8 h-8 flex items-center justify-center">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <h3 class="text-xl font-bold text-slate-800 mb-6 border-b pb-2">Trazabilidad</h3>
+
+            <!-- Línea de Tiempo -->
+            <div class="mb-8">
+                <h4 class="text-xs font-bold text-slate-400 uppercase mb-4">Progreso de Auditoría</h4>
+                <div id="timeline-container" class="space-y-0 pl-2">
+                    <!-- Renderizado dinámico -->
+                </div>
+            </div>
+
+            <!-- Ficha Técnica -->
+            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                <h4 class="text-xs font-bold text-slate-500 uppercase mb-3 flex items-center">
+                    <i class="fas fa-database mr-2 text-blue-500"></i> Datos de Operación
+                </h4>
+                <div id="details-container" class="space-y-3 text-sm text-slate-600">
+                    <p class="text-center text-gray-400 italic">Selecciona una solicitud...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"
+        class="fixed bottom-5 left-1/2 -translate-x-1/2 flex items-center bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl opacity-0 translate-y-10 transition-all duration-300 z-[70]">
+        <i id="toast-icon" class="fas fa-check-circle mr-3 text-green-400"></i>
+        <span id="toast-message" class="text-sm font-bold">Notificación</span>
+    </div>
+
+    <script>
+        const APP_VERSION = '2026.03.28.1';
+
+        // --- Toast System ---
+        let toastTimeout;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
+
+            // Configurar contenido
+            msg.textContent = message;
+
+            // Configurar estilo según tipo
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle mr-3 text-green-400';
+            } else if (type === 'info') {
+                icon.className = 'fas fa-info-circle mr-3 text-blue-400';
+            } else {
+                icon.className = 'fas fa-times-circle mr-3 text-red-500';
+            }
+
+            // Mostrar
+            toast.classList.remove('opacity-0', 'translate-y-10');
+
+            // Ocultar automático
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-10');
+            }, 3000);
+        }
+
+        // 2. VINCULACIÓN DEL SERVICE WORKER (IMPORTANTE PARA NOTIFICACIONES)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('SW registrado', reg))
+                .catch(err => console.log('Error SW', err));
+        }
+
+        // --- Configuración Firebase ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0j20ZXdcfVioRAfkJn6Uyn_Q2A6blYkI",
+            authDomain: "pizarraflc.appspot.com",
+            projectId: "pizarraflc",
+            storageBucket: "pizarraflc.firebasestorage.app",
+            messagingSenderId: "108471728011",
+            appId: "1:108471728011:web:c0a83b710b37d72c21e18e"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+
+        // --- HABILITAR PERSISTENCIA OFFLINE ---
+        firebase.firestore().enablePersistence()
+            .catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    console.warn("Persistencia falló: Multiple pestañas abiertas.");
+                } else if (err.code == 'unimplemented') {
+                    console.warn("Persistencia no soportada por el navegador.");
+                }
+            });
+
+        // --- LISTENERS DE RED ---
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+
+        function updateNetworkStatus() {
+            const status = document.getElementById('connection-status');
+            const label = document.getElementById('connection-label'); // Si existe etiqueta de texto
+
+            if (navigator.onLine) {
+                if (status) status.classList.replace('bg-red-500', 'bg-green-500');
+                if (label) label.textContent = 'En Línea';
+                showToast('Conexión recuperada 🟢', 'success');
+            } else {
+                if (status) status.classList.replace('bg-green-500', 'bg-red-500');
+                if (label) label.textContent = 'Sin Conexión';
+                showToast('Estás Offline. Los cambios se guardarán localmente 🔴', 'info');
+            }
+        }
+
+        // Ejecutar al inicio
+        document.addEventListener('DOMContentLoaded', () => {
+            updateNetworkStatus();
+            const versionEl = document.getElementById('app-version');
+            if (versionEl) versionEl.textContent = `v${APP_VERSION}`;
+        });
+
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+        const storage = firebase.storage();
+
+        let currentRequests = [];
+        let selectedRequestId = null;
+        let actionType = null;
+        let isPageLoad = true;
+        let currentUserRole = null; // Nuevo: Rol del usuario
+        let currentUserName = 'Móvil'; // Nuevo: Nombre del usuario
+
+        // --- ESTADO DE FILTROS ---
+        let currentTab = 'HOY'; // Default
+        let adminViewMode = 'PENDIENTES';
+        let allLoadedRequests = []; // Store raw data
+        let activeListenerToken = 0;
+        const BUSINESS_TIME_ZONE = 'America/Mexico_City';
+
+        // --- HELPER: FECHA MÉXICO ---
+        function getMexicoDate(offsetDays = 0) {
+            const d = new Date();
+            d.setDate(d.getDate() + offsetDays);
+            // Formato YYYY-MM-DD en zona horaria CDMX
+            return d.toLocaleDateString('en-CA', { timeZone: BUSINESS_TIME_ZONE });
+        }
+
+        function normalizeBusinessDate(value) {
+            if (!value) return '';
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+
+            let d = null;
+            if (typeof value === 'object' && typeof value.seconds === 'number') {
+                d = new Date(value.seconds * 1000);
+            } else {
+                d = new Date(value);
+            }
+
+            if (Number.isNaN(d.getTime())) return '';
+            return d.toLocaleDateString('en-CA', { timeZone: BUSINESS_TIME_ZONE });
+        }
+
+        function getMexicoDateFromTimestamp(timestamp) {
+            return normalizeBusinessDate(timestamp);
+        }
+
+        function isAdminCompletedMode() {
+            return currentUserRole === 'admin' && adminViewMode === 'COMPLETADOS';
+        }
+
+        function getThirdFilterValue() {
+            return isAdminCompletedMode() ? 'SEMANA' : 'TODOS';
+        }
+
+        function getActiveFilterIds() {
+            return ['hoy', 'ayer', 'todos'];
+        }
+
+        function getAdminCompletedReferenceDate(req) {
+            return getMexicoDateFromTimestamp(req.completadoTimestamp) ||
+                getMexicoDateFromTimestamp(req.entregaTimestamp) ||
+                normalizeBusinessDate(req.fecha);
+        }
+
+        function getRequestActivityDate(req) {
+            if (!req) return '';
+            if (req.status === 'completado') {
+                return getAdminCompletedReferenceDate(req);
+            }
+            return normalizeBusinessDate(req.fecha);
+        }
+
+        function getCardReferenceDate(req) {
+            return isAdminCompletedMode() ? getAdminCompletedReferenceDate(req) : getRequestActivityDate(req);
+        }
+
+        function getCardSortTime(req) {
+            if (req?.status === 'completado') {
+                const ref = req.completadoTimestamp || req.entregaTimestamp || req.createdAt || req.fecha || 0;
+                return new Date(ref).getTime() || 0;
+            }
+            return req.createdAt?.seconds ? req.createdAt.seconds * 1000 : (new Date(req.createdAt || 0).getTime() || 0);
+        }
+
+        function updateFilterTabLabels(countHoy = 0, countAyer = 0, countTodos = 0) {
+            const tabHoy = document.getElementById('tab-hoy');
+            const tabAyer = document.getElementById('tab-ayer');
+            const tabTodos = document.getElementById('tab-todos');
+
+            if (tabHoy) tabHoy.textContent = `HOY (${countHoy})`;
+            if (tabAyer) tabAyer.textContent = `AYER (${countAyer})`;
+
+            const labelTodos = (currentUserRole === 'efectivos' || isAdminCompletedMode()) ? 'SEMANA' : 'TODOS';
+            if (tabTodos) tabTodos.textContent = `${labelTodos} (${countTodos})`;
+        }
+
+        function syncFilterTabState() {
+            getActiveFilterIds().forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (!btn) return;
+                if (t === currentTab.toLowerCase()) {
+                    btn.classList.add('border-slate-800', 'text-slate-800');
+                    btn.classList.remove('border-transparent', 'text-gray-400');
+                } else {
+                    btn.classList.remove('border-slate-800', 'text-slate-800');
+                    btn.classList.add('border-transparent', 'text-gray-400');
+                }
+            });
+        }
+
+        function renderRequestsPlaceholder(message, icon = 'fa-circle-notch fa-spin text-blue-500') {
+            const container = document.getElementById('requests-container');
+            if (!container) return;
+            container.innerHTML = `
+                <div class="text-center text-gray-400 mt-20">
+                    <i class="fas ${icon} text-4xl mb-4"></i>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function prepareListForModeChange() {
+            allLoadedRequests = [];
+            updateFilterTabLabels(0, 0, 0);
+            syncFilterTabState();
+            const loadingMsg = isAdminCompletedMode() ? 'Cargando completados...' : 'Cargando pendientes...';
+            renderRequestsPlaceholder(loadingMsg);
+        }
+
+        function updateAdminViewToggle() {
+            const wrapper = document.getElementById('admin-view-toggle');
+            const btnPendientes = document.getElementById('admin-view-pendientes');
+            const btnCompletados = document.getElementById('admin-view-completados');
+            if (!wrapper || !btnPendientes || !btnCompletados) return;
+
+            if (currentUserRole === 'admin') {
+                wrapper.classList.remove('hidden');
+            } else {
+                wrapper.classList.add('hidden');
+            }
+
+            const isPendientes = adminViewMode === 'PENDIENTES';
+            btnPendientes.className = `rounded-full px-4 py-2 text-xs font-bold transition-colors ${isPendientes ? 'bg-slate-800 text-white shadow-sm' : 'bg-slate-100 text-slate-500 border border-slate-200'}`;
+            btnCompletados.className = `rounded-full px-4 py-2 text-xs font-bold transition-colors ${!isPendientes ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-500 border border-slate-200'}`;
+        }
+
+        function updateFilterTabsVisibility() {
+            const tabs = document.getElementById('filter-tabs');
+            if (!tabs) return;
+
+            if (currentUserRole === 'efectivos' || isAdminCompletedMode()) {
+                tabs.classList.remove('hidden');
+            } else {
+                tabs.classList.add('hidden');
+            }
+        }
+
+        function restartDataListener() {
+            isPageLoad = true;
+            prepareListForModeChange();
+            initDataListener(true);
+        }
+
+        function setAdminViewMode(mode) {
+            if (currentUserRole !== 'admin') return;
+            if (adminViewMode === mode) return;
+            adminViewMode = mode;
+            currentTab = 'HOY';
+            updateAdminViewToggle();
+            updateFilterTabsVisibility();
+            restartDataListener();
+        }
+
+        // --- Manejo de Sesión ---
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // PRIMERO: Obtener Rol antes de desbloquear
+                db.collection('usuarios').where('email', '==', user.email).get()
+                    .then(snap => {
+                        if (!snap.empty) {
+                            const userData = snap.docs[0].data();
+                            currentUserRole = userData.role;
+                            currentUserName = userData.name || userData.email || 'Usuario Móvil';
+                            console.log("Rol detectado:", currentUserRole);
+                        } else {
+                            currentUserRole = 'operaciones'; // Fallback
+                        }
+                        unlockApp();
+                    })
+                    .catch(err => {
+                        console.error("Error obteniendo rol:", err);
+                        unlockApp();
+                    });
+            } else {
+                currentUserRole = null;
+                lockApp();
+            }
+        });
+
+        function unlockApp() {
+            const overlay = document.getElementById('login-overlay');
+            if (overlay) {
+                overlay.classList.add('hidden');
+                overlay.style.display = 'none';
+            }
+            const status = document.getElementById('connection-status');
+            if (status) status.classList.replace('bg-red-500', 'bg-green-500');
+            const notifBtn = document.getElementById('btn-enable-notif');
+            if (notifBtn) notifBtn.classList.remove('hidden');
+
+            updateAdminViewToggle();
+            updateFilterTabsVisibility();
+            initDataListener();
+        }
+
+        function lockApp() {
+            const overlay = document.getElementById('login-overlay');
+            if (overlay) {
+                overlay.classList.remove('hidden');
+                overlay.style.display = 'flex';
+            }
+        }
+
+        function handleLogin() {
+            const btn = document.getElementById('btn-login');
+            const err = document.getElementById('login-error');
+            const userVal = document.getElementById('login-user').value.trim();
+            const passVal = document.getElementById('login-pass').value.trim();
+
+            if (!userVal || !passVal) {
+                showToast("Ingresa usuario y contraseña", "error");
+                return;
+            }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner animate-spin"></i> Verificando...';
+            btn.disabled = true;
+            if (err) err.classList.add('hidden');
+
+            const email = userVal.includes('@') ? userVal : `${userVal}@pizarraflc.com`;
+
+            auth.signInWithEmailAndPassword(email, passVal)
+                .then((userCredential) => {
+                    console.log("Login correcto");
+                    unlockApp();
+                })
+                .catch(error => {
+                    console.error("Error login:", error);
+                    btn.innerHTML = 'Iniciar Sesión';
+                    btn.disabled = false;
+
+                    let msg = "Error de acceso.";
+                    if (error.code === 'auth/wrong-password') msg = "Contraseña incorrecta.";
+                    if (error.code === 'auth/user-not-found') msg = "Usuario no encontrado.";
+                    if (error.code === 'auth/network-request-failed') msg = "Sin conexión a internet.";
+
+                    if (err) {
+                        err.textContent = msg;
+                        err.classList.remove('hidden');
+                    } else {
+                        showToast(msg, "error");
+                    }
+                });
+        }
+
+        function handleLogout() {
+            if (confirm("¿Cerrar sesión?")) {
+                auth.signOut().then(() => {
+                    console.log("Sesión cerrada");
+                    setTimeout(() => window.location.reload(), 500);
+                });
+            }
+        }
+
+        // --- Escuchar Datos (Con Alertas) ---
+        function initDataListener(force = false) {
+            if (window.unsubscribeSolicitudes) {
+                if (!force) return;
+                try { window.unsubscribeSolicitudes(); } catch (e) { console.warn('No se pudo reiniciar listener:', e); }
+                window.unsubscribeSolicitudes = null;
+            }
+
+            let query = db.collection('solicitudes');
+            const listenerToken = ++activeListenerToken;
+
+            if (currentUserRole === 'efectivos') {
+                query = query.where('status', 'in', ['autorizado', 'completado']);
+            } else if (isAdminCompletedMode()) {
+                query = query.where('status', '==', 'completado');
+            } else {
+                query = query.where('status', 'in', ['orden', 'pre-autorizado']);
+            }
+
+            window.unsubscribeSolicitudes = query.onSnapshot((snapshot) => {
+                if (listenerToken !== activeListenerToken) return;
+                const container = document.getElementById('requests-container');
+                if (!container) return;
+
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "added" && !isPageLoad && !isAdminCompletedMode()) {
+                        const data = change.doc.data();
+                        const monto = formatMoney(calculateTotal(data));
+                        if (data.status === 'orden') sendSystemNotification("NUEVA ORDEN", `Cliente: ${data.cliente}\nMonto: $${monto}`);
+                        else if (data.status === 'pre-autorizado') sendSystemNotification("PRE-AUTORIZADO", `Cliente: ${data.cliente}\nListo para firma.`);
+                    }
+                });
+
+                allLoadedRequests = [];
+                snapshot.forEach(doc => {
+                    allLoadedRequests.push({ id: doc.id, ...doc.data() });
+                });
+
+                renderList();
+                isPageLoad = false;
+            }, (error) => {
+                if (listenerToken !== activeListenerToken) return;
+                console.error("Error Firestore:", error);
+                if (error.code === 'permission-denied') {
+                    showToast("Tu sesión expiró.", "error");
+                    setTimeout(() => location.reload(), 2000);
+                }
+            });
+        }
+
+        function setFilter(tab) {
+            currentTab = tab;
+            syncFilterTabState();
+            renderList();
+        }
+
+        function renderList() {
+            const container = document.getElementById('requests-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            let allRequestsForRole = [...allLoadedRequests];
+            const isCompletedAdmin = isAdminCompletedMode();
+
+            if (currentUserRole === 'efectivos') {
+                const limitDate = getMexicoDate(-7);
+                allRequestsForRole = allRequestsForRole.filter(req => {
+                    const metodo = String(req.metodo_pago || req.retorno || '').toUpperCase().trim();
+                    if (metodo !== 'EFECTIVO') return false;
+
+                    const isCompletado = req.status === 'completado';
+                    if (!isCompletado) return true;
+                    const completedDate = getRequestActivityDate(req);
+                    return !!completedDate && completedDate >= limitDate;
+                });
+            } else if (isCompletedAdmin) {
+                allRequestsForRole = allRequestsForRole.filter(req => req.status === 'completado' && !!getAdminCompletedReferenceDate(req));
+            }
+
+            const hoyMx = getMexicoDate(0);
+            const ayerMx = getMexicoDate(-1);
+            const weekLimit = getMexicoDate(-6);
+            const getFilterDate = (req) => isCompletedAdmin ? getAdminCompletedReferenceDate(req) : getRequestActivityDate(req);
+
+            const countHoy = allRequestsForRole.filter(r => getFilterDate(r).startsWith(hoyMx)).length;
+            const countAyer = allRequestsForRole.filter(r => getFilterDate(r).startsWith(ayerMx)).length;
+            const countTodos = isCompletedAdmin
+                ? allRequestsForRole.filter(r => {
+                    const ref = getFilterDate(r);
+                    return ref >= weekLimit && ref <= hoyMx;
+                }).length
+                : allRequestsForRole.length;
+
+            updateFilterTabLabels(countHoy, countAyer, countTodos);
+
+            let requestsToRender = [];
+
+            const filterAdmin = (req) => {
+                if (req.status === 'cancelado') return false;
+                if (currentUserRole !== 'efectivos' && !isCompletedAdmin) {
+                    if (req.status === 'completado') {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            if (currentUserRole !== 'efectivos' && !isCompletedAdmin) {
+                // Admin Pendientes: IGNORAR filtro de fechas (Tabs están ocultos)
+                requestsToRender = allRequestsForRole.filter(r => filterAdmin(r));
+            } else {
+                if (currentTab === 'HOY') {
+                    requestsToRender = allRequestsForRole.filter(r => getFilterDate(r).startsWith(hoyMx) && filterAdmin(r));
+                } else if (currentTab === 'AYER') {
+                    requestsToRender = allRequestsForRole.filter(r => getFilterDate(r).startsWith(ayerMx) && filterAdmin(r));
+                } else if (currentTab === 'SEMANA') {
+                    requestsToRender = allRequestsForRole.filter(r => {
+                        const ref = getFilterDate(r);
+                        return ref >= weekLimit && ref <= hoyMx && filterAdmin(r);
+                    });
+                } else {
+                    requestsToRender = allRequestsForRole.filter(r => filterAdmin(r));
+                }
+            }
+
+            requestsToRender.sort((a, b) => {
+                const getWeight = (req) => {
+                    if (isCompletedAdmin) return 1;
+                    if (currentUserRole !== 'efectivos') {
+                        if (req.status === 'orden') return 3;
+                        if (req.status === 'pre-autorizado') return 2;
+                        return 1;
+                    }
+
+                    const isCompletado = req.status === 'completado';
+                    const hasConteo = !!req.conteoTimestamp;
+                    const isAutorizado = req.status === 'autorizado';
+
+                    if (isAutorizado && !hasConteo) return 3;
+                    if (isAutorizado && hasConteo) return 2;
+                    if (isCompletado) return 1;
+                    return 1;
+                };
+
+                const weightA = getWeight(a);
+                const weightB = getWeight(b);
+
+                if (weightA !== weightB) {
+                    return weightB - weightA;
+                }
+
+                const timeA = getCardSortTime(a);
+                const timeB = getCardSortTime(b);
+                return timeB - timeA;
+            });
+
+            if (requestsToRender.length === 0) {
+                const msgs = isCompletedAdmin ? {
+                    'HOY': 'No hay completados para hoy.',
+                    'AYER': 'No hubo completados ayer.',
+                    'SEMANA': 'No hay completados en los ultimos 7 dias.'
+                } : {
+                    'HOY': 'No hay entregas para hoy.',
+                    'AYER': 'No hubo entregas ayer.',
+                    'TODOS': 'No hay entregas pendientes.'
+                };
+                let debugMsg = countTodos === 0 ? '<br><span class="text-xs">Esperando asignaciones...</span>' : '';
+                container.innerHTML = `<div class="text-center text-gray-400 mt-20"><i class="fas fa-calendar-day text-4xl mb-4 text-gray-300"></i><p>${msgs[currentTab] || 'Lista vacia.'}${debugMsg}</p></div>`;
+                return;
+            }
+
+            requestsToRender.forEach(req => {
+                renderCard(req, calculateTotal(req));
+            });
+        }
+
+        // --- Renderizado Optimizado ---
+        function getCardConfig(req, role) {
+            const isOrden = req.status === 'orden';
+            const isCompletado = req.status === 'completado';
+            const hasConteo = !!req.conteoTimestamp;
+
+            // CONSTANTES DE ESTILO COMPARTIDAS
+            const STYLES = {
+                orange: { border: 'border-orange-500', badge: 'bg-orange-100 text-orange-700' },
+                purple: { border: 'border-purple-500', badge: 'bg-purple-100 text-purple-700' },
+                blue: { border: 'border-blue-500', badge: 'bg-blue-100 text-blue-700' },
+                green: { border: 'border-green-500', badge: 'bg-green-100 text-green-700' }
+            };
+
+            // CONFIGURACIÓN EFECTIVOS
+            if (role === 'efectivos') {
+                if (isCompletado) {
+                    return {
+                        ...STYLES.green,
+                        statusText: 'Entregado',
+                        buttons: ''
+                    };
+                }
+                if (hasConteo) {
+                    return {
+                        ...STYLES.blue,
+                        statusText: '<i class="fas fa-truck mr-1"></i> En Ruta',
+                        buttons: `
+                        <label class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-bold active:scale-95 transition-transform shadow-md flex items-center cursor-pointer">
+                            <i class="fas fa-camera mr-2"></i> Entregar
+                            <input type="file" accept="image/*" capture="environment" class="hidden" onchange="handleEntrega(event, '${req.id}')">
+                        </label>`
+                    };
+                }
+                // Por defecto: Por Recolectar (Autorizado)
+                return {
+                    ...STYLES.purple,
+                    statusText: 'Por Recolectar',
+                    buttons: `
+                    <button onclick="handleConteo('${req.id}')" 
+                        class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold active:scale-95 transition-transform shadow-md flex items-center">
+                        <i class="fas fa-stopwatch mr-2"></i> Confirmar Conteo
+                    </button>`
+                };
+            }
+
+            // CONFIGURACIÓN ADMIN / OPS
+            if (isAdminCompletedMode()) {
+                return {
+                    ...STYLES.green,
+                    statusText: 'Completado',
+                    buttons: ''
+                };
+            }
+            if (isCompletado) {
+                return {
+                    ...STYLES.green,
+                    statusText: 'Completado',
+                    buttons: '' // Sin botones extra, solo lectura
+                };
+            }
+            if (isOrden) {
+                return {
+                    ...STYLES.orange,
+                    statusText: 'Pre-Autorización',
+                    buttons: `
+                    <button onclick="handleAction('${req.id}', 'pre-auth')" 
+                        class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold active:scale-95 transition-transform shadow-md flex items-center">
+                        <i class="fas fa-check mr-2"></i> Aprobar
+                    </button>`
+                };
+            }
+            // Autorización Final
+            return {
+                ...STYLES.purple,
+                statusText: 'Autorización Final',
+                buttons: `
+                <button onclick="handleAction('${req.id}', 'auth')" 
+                    class="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold active:scale-95 transition-transform shadow-md flex items-center">
+                    <i class="fas fa-signature mr-2"></i> Autorizar
+                </button>`
+            };
+        }
+
+        function renderCard(req, total) {
+            const config = getCardConfig(req, currentUserRole);
+            const container = document.getElementById('requests-container');
+
+            if (!container) return;
+
+            const html = `
+            <div class="bg-white rounded-xl p-4 card-shadow relative overflow-hidden ${config.border} border-l-4 mb-4">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="text-xs font-bold px-2 py-1 rounded-full ${config.badge}">${config.statusText}</span>
+                    <span class="text-xs text-gray-400">${formatDate(getCardReferenceDate(req))}</span>
+                </div>
+                <h2 class="text-lg font-bold text-slate-800 leading-tight mb-1">${req.cliente || 'Sin Cliente'}</h2>
+                <p class="text-xs text-gray-500 mb-3 truncate">${req.empresa || req.familia || 'N/A'}</p>
+                
+                <div class="flex justify-between items-end border-t pt-3">
+                    <div>
+                        <p class="text-[10px] text-gray-400 uppercase font-bold">Monto Total</p>
+                        <p class="text-xl font-black text-slate-800">$${formatMoney(total)}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                         <button onclick="openFlowModal('${req.id}', '${req.operacionId || ''}')" class="bg-indigo-50 text-indigo-600 p-3 rounded-lg shadow-sm active:scale-95 transition-transform">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${config.buttons}
+                    </div>
+                </div>
+            </div>`;
+
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        // --- FUNCIONES DE FLUJO DE EFECTIVO ---
+        function handleConteo(id) {
+            // Verificación Offline no crítica para conteo (Timestamp local es válido)
+            if (confirm("¿Confirmar que el efectivo ha sido contado y está listo para ruta?")) {
+                db.collection('solicitudes').doc(id).update({
+                    conteoTimestamp: new Date().toISOString()
+                })
+                    .then(() => showToast("Conteo registrado. ¡En Ruta!", "success"))
+                    .catch(err => {
+                        console.error(err);
+                        // Mensaje amigable si es offline (aunque Firestone persiste)
+                        if (navigator.onLine) showToast("Error: " + err.message, "error");
+                        else showToast("Guardado localmente (Offline) 🟠", "info");
+                    });
+            }
+        }
+
+        async function handleEntrega(event, id) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 0. VERIFICACIÓN DE RED (Crucial para Storage)
+            if (!navigator.onLine) {
+                showToast("⚠️ Requiere Internet para subir evidencia.", "error");
+                // Limpiar input para permitir reintento
+                event.target.value = '';
+                return;
+            }
+
+            // 1. VALIDACIONES
+            const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+            const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+
+            if (!ALLOWED_TYPES.includes(file.type)) {
+                showToast("Solo imágenes (JPG, PNG)", "error");
+                return;
+            }
+            if (file.size > MAX_SIZE) {
+                showToast("Imagen muy pesada (Máx 5MB)", "error");
+                return;
+            }
+
+            showToast("Iniciando subida...", "info");
+
+            const storageRef = storage.ref();
+            // Nombre único con ID y Timestamp
+            const fileName = `comprobantes_entrega/${id}_${Date.now()}.jpg`;
+            const itemRef = storageRef.child(fileName);
+
+            try {
+                // 2. UPLOAD CON PROGRESO
+                const uploadTask = itemRef.put(file);
+
+                uploadTask.on('state_changed',
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        if (progress % 20 === 0 || progress === 100) { // Evitar spam de toasts
+                            showToast(`Subiendo... ${Math.round(progress)}%`, "info");
+                        }
+                    },
+                    (error) => {
+                        console.error("Upload error:", error);
+                        if (error.code === 'storage/canceled') showToast("Subida cancelada", "info");
+                        else showToast("Error al subir imagen", "error");
+                    }
+                );
+
+                await uploadTask;
+                const downloadURL = await uploadTask.snapshot.ref.getDownloadURL();
+
+                // 3. ACTUALIZACIÓN ATÓMICA FIRESTORE
+                await db.collection('solicitudes').doc(id).update({
+                    status: 'completado',
+                    entregaTimestamp: new Date().toISOString(),
+                    comprobanteUrl: downloadURL,
+                    comprobanteURLs: firebase.firestore.FieldValue.arrayUnion(downloadURL),
+                    comprobanteTesoreriaURLs: firebase.firestore.FieldValue.arrayUnion(downloadURL),
+                    mobileEvidence: firebase.firestore.FieldValue.arrayUnion({
+                        url: downloadURL,
+                        timestamp: new Date().toISOString(),
+                        capturedBy: currentUserName,
+                        device: navigator.userAgent
+                    })
+                });
+
+                showToast("¡Entrega Exitosa! 🎉", "success");
+
+            } catch (error) {
+                console.error("Error flujo entrega:", error);
+
+                // Manejo de errores específicos
+                if (error.code === 'permission-denied') {
+                    showToast("Sin permisos para guardar", "error");
+                } else {
+                    showToast("Error guardando datos", "error");
+                }
+            } finally {
+                // Limpiar input para permitir nueva selección
+                event.target.value = '';
+            }
+        }
+
+        function handleAction(id, type) {
+            selectedRequestId = id;
+            actionType = type;
+            if (type === 'pre-auth') {
+                if (confirm("¿Confirmar Pre-Autorización?")) updateStatus(id, 'pre-autorizado');
+            } else {
+                const modal = document.getElementById('pin-modal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    const input = document.getElementById('pin-input');
+                    if (input) {
+                        input.value = '';
+                        input.focus();
+                    }
+                }
+            }
+        }
+
+        function confirmAuthorize() {
+            const input = document.getElementById('pin-input');
+            if (input && input.value === '123456') {
+                updateStatus(selectedRequestId, 'autorizado');
+                closePinModal();
+            } else {
+                showToast("PIN Incorrecto", "error");
+            }
+        }
+
+        function updateStatus(id, newStatus) {
+            const updateData = { status: newStatus };
+            const now = new Date().toISOString();
+            if (newStatus === 'pre-autorizado') updateData.preautorizadoTimestamp = now;
+            if (newStatus === 'autorizado') updateData.autorizadoTimestamp = now;
+
+            db.collection('solicitudes').doc(id).update(updateData)
+                .then(() => showToast("¡Solicitud procesada!", "success"))
+                .catch(e => showToast("Error: " + e.message, "error"));
+        }
+
+        function closePinModal() {
+            const modal = document.getElementById('pin-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        function calculateTotal(req) { return (req.conceptosGuardados || req.conceptos || []).reduce((sum, i) => sum + (parseFloat(i.CANTIDAD) || 0), 0); }
+        function formatMoney(a) { return a.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+        function formatDate(d) {
+            if (!d) return ''; const [y, m, da] = d.split('-'); return `${da}/${m}`;
+        }
+
+        // --- Lógica del Modal de Flujo ---
+        function openFlowModal(reqId, opId) {
+            const modal = document.getElementById('flow-modal');
+            const content = document.getElementById('flow-modal-content');
+
+            // Buscar datos locales
+            const req = allLoadedRequests.find(r => r.id === reqId);
+            if (!req) return showToast("Solicitud no encontrada en memoria", "error");
+
+            modal.classList.remove('hidden');
+            // Animación de entrada para móvil
+            setTimeout(() => {
+                content.classList.remove('translate-y-full');
+            }, 10);
+
+            renderTimeline(req);
+            fetchOperationDetails(opId);
+            renderComprobantesAdmin(req); // NUEVO: Lógica para Comprobantes
+        }
+
+        function closeFlowModal() {
+            const modal = document.getElementById('flow-modal');
+            const content = document.getElementById('flow-modal-content');
+
+            content.classList.add('translate-y-full');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                document.getElementById('details-container').innerHTML = '<p class="text-center text-gray-400 italic">Limpiando...</p>';
+                const compContainer = document.getElementById('comprobantes-container');
+                if (compContainer) compContainer.remove(); // Limpiar contenedor de comprobantes al cerrar
+            }, 300);
+        }
+
+        // --- NUEVA FUNCIÓN: RENDERIZAR COMPROBANTES (SOLO ADMIN) ---
+        function renderComprobantesAdmin(req) {
+            if (currentUserRole === 'efectivos') return;
+
+            const explicitTreasuryUrls = Array.isArray(req.comprobanteTesoreriaURLs)
+                ? req.comprobanteTesoreriaURLs
+                : (req.comprobanteTesoreriaURL ? [req.comprobanteTesoreriaURL] : []);
+            const generalUrls = Array.isArray(req.comprobanteURLs)
+                ? req.comprobanteURLs
+                : (req.comprobanteUrl ? [req.comprobanteUrl] : []);
+            const mobileEvidence = Array.isArray(req.mobileEvidence) ? req.mobileEvidence : [];
+            const mobileUrls = mobileEvidence.map(item => item?.url).filter(Boolean);
+
+            let urls = [...new Set([...explicitTreasuryUrls, ...generalUrls, ...mobileUrls])];
+            const hiddenAttachments = Array.isArray(req.hiddenAttachments) ? req.hiddenAttachments : [];
+
+            if (!['admin', 'tesoreria', 'efectivos'].includes(currentUserRole)) {
+                urls = urls.filter(url => !hiddenAttachments.includes(url));
+            }
+
+            if (urls.length > 0) {
+                const contentDiv = document.getElementById('flow-modal-content');
+                let buttonsHtml = '';
+
+                urls.forEach((url, i) => {
+                    const isPdf = url.toLowerCase().includes('.pdf');
+                    const isHidden = hiddenAttachments.includes(url);
+                    const icon = isPdf ? 'fa-file-pdf text-red-500' : 'fa-image text-blue-500';
+                    const hiddenBadge = isHidden
+                        ? '<span class="ml-2 text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">Oculto</span>'
+                        : '';
+
+                    buttonsHtml += `
+                        <a href="${url}" target="_blank" rel="noopener noreferrer" 
+                           class="flex items-center justify-between p-3 bg-white border ${isHidden ? 'border-amber-200 bg-amber-50' : 'border-slate-200'} rounded-lg shadow-sm active:scale-95 transition-transform mb-2">
+                           <span class="text-sm font-medium text-slate-700 flex items-center">
+                               <i class="fas ${icon} mr-3 text-lg"></i> Evidencia ${i + 1}${hiddenBadge}
+                           </span>
+                           <i class="fas fa-external-link-alt text-gray-400 text-xs"></i>
+                        </a>
+                    `;
+                });
+
+                const existing = document.getElementById('comprobantes-container');
+                if (existing) existing.remove();
+
+                const html = `
+                    <div id="comprobantes-container" class="mt-6 mb-4">
+                        <h4 class="text-xs font-bold text-slate-400 uppercase mb-3 flex items-center">
+                            <i class="fas fa-paperclip mr-2 text-slate-400"></i> Comprobantes / Archivos
+                        </h4>
+                        <div class="space-y-2">
+                            ${buttonsHtml}
+                        </div>
+                    </div>
+                `;
+
+                contentDiv.insertAdjacentHTML('beforeend', html);
+            }
+        }
+
+        function renderTimeline(req) {
+            const container = document.getElementById('timeline-container');
+            const steps = [
+                { id: 'creacion', label: 'Solicitud Creada', time: req.fechaCreacion || req.fecha, icon: 'fa-file-medical' },
+                { id: 'pre-autorizado', label: 'Pre-Autorización', time: req.preautorizadoTimestamp, icon: 'fa-check-circle' },
+                { id: 'autorizado', label: 'Autorización Final', time: req.autorizadoTimestamp, icon: 'fa-signature' },
+                { id: 'completado', label: 'Dispersion / Pago', time: req.completadoTimestamp, icon: 'fa-paper-plane' }
+            ];
+
+            let html = '';
+            // Validar estado actual para colorear
+            const statusMap = { 'orden': 0, 'pre-autorizado': 1, 'autorizado': 2, 'completado': 3 };
+            const currentIdx = statusMap[req.status] !== undefined ? statusMap[req.status] : -1;
+
+            steps.forEach((step, idx) => {
+                const isActive = idx <= currentIdx;
+                const isLast = idx === steps.length - 1;
+                const colorClass = isActive ? 'text-blue-600 border-blue-600' : 'text-gray-300 border-gray-200';
+                const bgClass = isActive ? 'bg-blue-600' : 'bg-gray-200';
+                const textClass = isActive ? 'text-slate-800' : 'text-gray-400';
+
+                // Línea conectora
+                const connector = !isLast ? `<div class="absolute left-3.5 top-8 bottom-0 w-0.5 ${idx < currentIdx ? 'bg-blue-200' : 'bg-gray-100'} h-6"></div>` : '';
+
+                html += `
+                <div class="relative flex items-start pb-6 last:pb-0">
+                    <div class="flex-shrink-0 relative z-10 w-8 h-8 rounded-full flex items-center justify-center border-2 ${colorClass} bg-white">
+                        <i class="fas ${step.icon} text-xs"></i>
+                    </div>
+                    ${connector}
+                    <div class="ml-4 flex-1">
+                        <p class="text-sm font-bold ${textClass}">${step.label}</p>
+                        <p class="text-xs text-gray-400">${step.time ? new Date(step.time).toLocaleString() : '--'}</p>
+                    </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        function fetchOperationDetails(opId) {
+            const container = document.getElementById('details-container');
+            if (!opId) {
+                container.innerHTML = '<p class="text-yellow-600 text-center">⚠ Sin ID de Operación vinculado</p>';
+                return;
+            }
+
+            container.innerHTML = '<div class="text-center py-4"><i class="fas fa-circle-notch fa-spin text-blue-500"></i> Cargando datos...</div>';
+
+            db.collection('operaciones').doc(opId).get()
+                .then(doc => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        container.innerHTML = `
+                            <div class="grid grid-cols-2 gap-y-3 gap-x-2">
+                                <div><p class="text-[10px] uppercase text-gray-400">Familia</p><p class="font-medium text-slate-700">${data.familia || '-'}</p></div>
+                                <div><p class="text-[10px] uppercase text-gray-400">Esquema</p><p class="font-medium text-slate-700">${data.esquema || '-'}</p></div>
+                                <div class="col-span-2 border-t border-slate-200 my-1"></div>
+                                <div><p class="text-[10px] uppercase text-gray-400">Origen</p><p class="font-medium text-slate-700 truncate">${data.origen || '-'}</p></div>
+                                <div><p class="text-[10px] uppercase text-gray-400">Retorno</p><p class="font-medium text-slate-700 truncate">${data.retorno || '-'}</p></div>
+                                <div><p class="text-[10px] uppercase text-gray-400">Tipo Op</p><p class="font-medium text-slate-700">${data.tipo_operacion || '-'}</p></div>
+                                <div><p class="text-[10px] uppercase text-gray-400">Ejecutivo</p><p class="font-medium text-slate-700 text-xs">${data.ejecutivo || '-'}</p></div>
+                            </div>
+                        `;
+                    } else {
+                        container.innerHTML = '<p class="text-red-500 text-center">Operación no encontrada.</p>';
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    container.innerHTML = '<p class="text-red-500 text-center">Error al cargar.</p>';
+                });
+        }
+
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) return showToast("No soportado.", "error");
+            Notification.requestPermission().then(p => {
+                if (p === "granted") {
+                    // Intento de reproducir sonido para "despertar" el audio
+                    const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+                    audio.play().catch(() => { });
+
+                    sendSystemNotification("Activado", "Notificaciones listas");
+                    document.getElementById('btn-enable-notif').style.display = 'none';
+                }
+            });
+        }
+
+        function sendSystemNotification(title, body) {
+            if (Notification.permission === "granted") {
+                // Usar Service Worker si está disponible (Mejor para Android)
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.ready.then(function (registration) {
+                        registration.showNotification(title, {
+                            body: body,
+                            icon: 'FLC original.png',
+                            vibrate: [200, 100, 200],
+                            tag: 'alert-pizarra'
+                        });
+                    });
+                } else {
+                    new Notification(title, { body, icon: 'FLC original.png' });
+                }
+
+                // Sonido
+                const audio = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+                audio.play().catch(e => console.log("Audio bloqueado"));
+            }
+        }
+    </script>
+</body>
+
+</html>

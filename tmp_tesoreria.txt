@@ -1,0 +1,606 @@
+﻿
+                <div id
+="tesoreria-alerts-cont
+ainer"
+                    
+<button data-panel="tes
+oreria-panel" 
+class="tab flex 
+items-center 
+gap-2">AuditorÃa 
+TesorerÃa <span
+                       
+     id="tesoreria-tab-
+badge"
+                <div 
+id="tesoreria-panel" 
+class="panel">
+                    
+<div id="tesoreria-tabl
+e-container" 
+class="table-container 
+border border-gray-200 
+rounded-lg">
+                updateT
+esoreriaAlerts();
+                       
+                 
+<option 
+value="tesoreria" 
+${user.role === 
+'tesoreria' ? 
+'selected' : 
+''}>TesorerÃa</option>
+                       
+     <option value="tes
+oreria">TesorerÃ
+a</option>
+            const 
+solicitudIconColor = 
+role === 'tesoreria' ? 
+'text-blue-600 
+hover:text-blue-800' : 
+'text-green-600 
+hover:text-green-800';
+                const 
+hasTreasury = (solicitu
+d.comprobanteTesoreriaU
+RLs && solicitud.compro
+banteTesoreriaURLs.leng
+th > 0) || !!solicitud.
+comprobanteTesoreriaURL
+;
+            const 
+sustituirBtn = (role 
+!== 'tesoreria' && 
+role !== 'financiero' 
+&& role !== 
+'efectivos' && role 
+!== 'administrativo') ?
+            const 
+cancelarBtn = (role 
+!== 'tesoreria' && 
+role !== 'financiero' 
+&& role !== 
+'efectivos' && role 
+!== 'administrativo') ?
+            const 
+conciliarBtn = (role 
+=== 'tesoreria' || 
+role === 'efectivos') 
+&& solicitud && 
+(solicitud.status === 
+'completado' || 
+solicitud.status === 
+'conciliado') ?
+            if 
+(containerId === 'tesor
+eria-table-container') 
+{
+                let 
+matchesTesoreria = 
+true;
+                if 
+(containerId === 'tesor
+eria-table-container') 
+{
+                    if 
+(valRetorno && 
+op.retorno !== 
+valRetorno) 
+matchesTesoreria = 
+false;
+                    if 
+(valOrigen && 
+op.origen !== 
+valOrigen) 
+matchesTesoreria = 
+false;
+                    if 
+(valRetorno && 
+op.retorno !== 
+valRetorno) 
+matchesTesoreria = 
+false;
+                    if 
+(valOrigen && 
+op.origen !== 
+valOrigen) 
+matchesTesoreria = 
+false;
+                return 
+matchesSearch && 
+matchesTesoreria && 
+matchesStatus;
+            renderizarT
+abla('tesoreria-table-c
+ontainer');
+            const 
+tesoreriaPanel = docume
+nt.getElementById('teso
+reria-panel');
+            tesoreriaPa
+nel.querySelectorAll('b
+utton').forEach(el => 
+el.disabled = false);
+            tesoreriaPa
+nel.classList.remove('p
+anel-disabled');
+                if 
+(role === 'admin' || 
+role === 'tesoreria') {
+            if (role 
+=== 'tesoreria') {
+                tesorer
+iaPanel.classList.add('
+panel-disabled');
+                tesorer
+iaPanel.querySelectorAl
+l('button[data-action]'
+).forEach(el => 
+el.disabled = true);
+                const 
+tabTesoreria = document
+.querySelector('button[
+data-panel="tesoreria-p
+anel"]');
+                if 
+(tabTesoreria) tabTesor
+eria.style.display = 
+'none';
+                const 
+tabTesoreria = document
+.querySelector('button[
+data-panel="tesoreria-p
+anel"]');
+                if 
+(tabTesoreria) tabTesor
+eria.style.display = 
+'none';
+                const 
+tabTesoreria = document
+.querySelector('button[
+data-panel="tesoreria-p
+anel"]');
+                if 
+(tabTesoreria) tabTesor
+eria.style.display = 
+'';
+        function update
+TesoreriaAlerts() {
+            if (!AppSta
+te.dom.tesoreriaAlertsC
+ontainer || !AppState.d
+om.pendingCompletionCou
+nt) return;
+            if 
+(AppState.currentRole 
+!== 'tesoreria' && AppS
+tate.currentUser?.role 
+!== 'admin') {
+                AppStat
+e.dom.tesoreriaAlertsCo
+ntainer.classList.add('
+hidden');
+            const 
+badge = document.getEle
+mentById('tesoreria-tab
+-badge');
+                AppStat
+e.dom.tesoreriaAlertsCo
+ntainer.classList.remov
+e('hidden');
+                const 
+mensajeTexto = AppState
+.dom.tesoreriaAlertsCon
+tainer.querySelector('p
+');
+                AppStat
+e.dom.tesoreriaAlertsCo
+ntainer.classList.add('
+hidden');
+            if 
+(manualBtn) manualBtn.c
+lassList.toggle('hidden
+', role !== 
+'tesoreria');
+            updateTesor
+eriaAlerts();
+            document.ge
+tElementById('comproban
+te-tesoreria-upload').a
+ddEventListener('change
+', (e) => handleComprob
+anteTesoreriaUpload(e, 
+existingSolicitud));
+            document.ge
+tElementById('comproban
+te-tesoreria-upload').a
+ddEventListener('change
+', (e) => handleComprob
+anteTesoreriaUpload(e, 
+existingSolicitud));
+            if 
+(AppState.currentRole 
+=== 'tesoreria') {
+            const compr
+obanteTesoreriaFieldset
+ = document.getElementB
+yId('comprobante-tesore
+ria-fieldset');
+            if 
+((AppState.currentRole 
+=== 'tesoreria' || 
+AppState.currentRole 
+=== 'operaciones' || 
+AppState.currentRole 
+=== 'efectivos') && 
+(currentStatus === 
+STATUS.AUTORIZADO || 
+currentStatus === 
+STATUS.COMPLETADO || 
+currentStatus === 
+STATUS.CONCILIADO)) {
+                comprob
+anteTesoreriaFieldset.c
+lassList.remove('hidden
+');
+                const 
+inputTesoreria = docume
+nt.getElementById('comp
+robante-tesoreria-uploa
+d');
+                if 
+(inputTesoreria) {
+                    if 
+(AppState.currentRole 
+!== 'tesoreria' && 
+AppState.currentRole 
+!== 'admin' && 
+AppState.currentRole 
+!== 'efectivos') {
+                       
+ inputTesoreria.classLi
+st.add('hidden');
+                       
+ inputTesoreria.classLi
+st.remove('hidden');
+                renderC
+omprobantesTesoreriaLis
+t(existingSolicitud);
+            if 
+(existingSolicitud && (
+existingSolicitud.statu
+s === 
+STATUS.COMPLETADO || ex
+istingSolicitud.status 
+=== STATUS.CONCILIADO) 
+&& 
+AppState.currentRole 
+=== 'tesoreria') {
+                if 
+(role === 'tesoreria') 
+{
+                if 
+(role === 'tesoreria' 
+|| role === 
+'efectivos') {
+                if 
+(role === 'tesoreria' 
+|| role === 
+'efectivos') {
+                 
+<fieldset id="comproban
+te-tesoreria-fieldset" 
+class="border-t 
+border-gray-200 pt-6 
+mt-6 hidden">
+                       
+ <input type="file" id=
+"comprobante-tesoreria-
+upload" accept="image/*
+,application/pdf,.zip,.
+rar" multiple 
+class="block w-full 
+text-sm text-gray-500 
+file:mr-4 file:py-2 
+file:px-4 
+file:rounded-md 
+file:border-0 
+file:text-sm 
+file:font-semibold 
+file:bg-emerald-50 
+file:text-emerald-700 h
+over:file:bg-emerald-10
+0">
+                       
+  <div class="mb-2 
+flex items-center 
+justify-between 
+text-sm hidden 
+bg-gray-100 p-2 
+rounded-t-md border-b 
+border-gray-200" id="co
+mprobante-tesoreria-bul
+k-actions">
+                       
+          <input 
+type="checkbox" onchang
+e="document.querySelect
+orAll('#comprobante-tes
+oreria-list .check-comp
+robante').forEach(cb 
+=> cb.checked = 
+this.checked)" 
+class="rounded 
+text-emerald-600 focus:
+ring-emerald-500">
+                       
+      <button 
+type="button" onclick="
+descargarComprobantesMu
+ltiples('comprobante-te
+soreria-list')" 
+class="px-3 py-1 
+bg-emerald-600 
+text-white shadow-sm 
+rounded 
+hover:bg-emerald-700 
+border 
+border-emerald-700 
+transition-colors">
+                       
+  <div id="comprobante-
+tesoreria-placeholder" 
+class="w-full p-4 
+bg-gray-100 
+rounded-b-md flex 
+items-center 
+justify-center 
+text-gray-400">Sin 
+comprobantes de 
+TesorerÃa</div>
+                       
+  <ul id="comprobante-t
+esoreria-list" 
+class="list-none 
+bg-gray-50 p-2 
+rounded-b-md space-y-1 
+hidden"></ul>
+                       
+  <div id="comprobante-
+tesoreria-preview" 
+class="hidden p-4 
+bg-emerald-50 
+rounded-md">
+                       
+     <a id="comprobante
+-tesoreria-preview-link
+" href="#" 
+target="_blank" 
+class="font-medium 
+text-emerald-700 
+hover:underline"></a>
+        async function 
+handleComprobanteTesore
+riaUpload(e, 
+solicitud) {
+            const 
+progressContainerId = '
+progress-tesoreria-cont
+ainer';
+                const 
+pathHint = `comprobante
+s_tesoreria/${solicitud
+.id}`;
+                let 
+currentUrls = solicitud
+.comprobanteTesoreriaUR
+Ls || [];
+                if (!so
+licitud.comprobanteTeso
+reriaURLs && solicitud.
+comprobanteTesoreriaURL
+) {
+                    cur
+rentUrls.push(solicitud
+.comprobanteTesoreriaUR
+L);
+                    com
+probanteTesoreriaURLs: 
+allUrls,
+                    com
+probanteTesoreriaURL: 
+allUrls[allUrls.length 
+- 1]
+                solicit
+ud.comprobanteTesoreria
+URLs = allUrls;
+                solicit
+ud.comprobanteTesoreria
+URL = 
+allUrls[allUrls.length 
+- 1]; // Mantener sync 
+memoria local
+                renderC
+omprobantesTesoreriaLis
+t(solicitud);
+        function render
+ComprobantesTesoreriaLi
+st(solicitud) {
+            const ul = 
+document.getElementById
+('comprobante-tesoreria
+-list');
+            const 
+placeholder = document.
+getElementById('comprob
+ante-tesoreria-placehol
+der');
+            const 
+fieldset = document.get
+ElementById('comprobant
+e-tesoreria-fieldset');
+ // Referencia al 
+fieldset padre
+            const 
+explicitTreasuryUrls = 
+solicitud.comprobanteTe
+soreriaURLs ||
+                (solici
+tud.comprobanteTesoreri
+aURL ? [solicitud.compr
+obanteTesoreriaURL] : 
+[]);
+            if 
+(AppState.currentRole 
+!== 'tesoreria' && 
+AppState.currentRole 
+!== 'admin' && 
+AppState.currentRole 
+!== 'efectivos') {
+            // 
+Permisos de 
+EdiciÃ³n/Subida 
+(Tesoreria o Admin o 
+Efectivos)
+            const 
+canEdit = 
+AppState.currentRole 
+=== 'tesoreria' || 
+AppState.currentRole 
+=== 'admin' || 
+AppState.currentRole 
+=== 'efectivos';
+            const 
+bulkActions = document.
+getElementById('comprob
+ante-tesoreria-bulk-act
+ions');
+                       
+     handleToggleVisibi
+lityTesoreria(solicitud
+.id, url);
+                       
+         handleDeleteCo
+mprobanteTesoreria(soli
+citud.id, url);
+                // 
+Solo lo mostramos si 
+el rol PUEDE subir 
+archivos (Tesoreria/Adm
+in/Efectivos)
+        async function 
+handleToggleVisibilityT
+esoreria(solicitudId, 
+urlToToggle) {
+                renderC
+omprobantesTesoreriaLis
+t(solicitud);
+        async function 
+handleDeleteComprobante
+Tesoreria(solicitudId, 
+urlToDelete) {
+                let 
+currentUrls = solicitud
+.comprobanteTesoreriaUR
+Ls || [];
+                if 
+(currentUrls.length 
+=== 0 && solicitud.comp
+robanteTesoreriaURL) {
+                    
+currentUrls = [solicitu
+d.comprobanteTesoreriaU
+RL];
+                    com
+probanteTesoreriaURLs: 
+newUrls,
+                    com
+probanteTesoreriaURL: 
+newUrls.length > 0 ? 
+newUrls[newUrls.length 
+- 1] : null,
+                solicit
+ud.comprobanteTesoreria
+URLs = newUrls;
+                solicit
+ud.comprobanteTesoreria
+URL = newUrls.length > 
+0 ? 
+newUrls[newUrls.length 
+- 1] : null;
+                renderC
+omprobantesTesoreriaLis
+t(solicitud);
+            const 
+tesoreriaTab = document
+.querySelector('button[
+data-panel="tesoreria-p
+anel"]');
+                if 
+(tesoreriaTab) tesoreri
+aTab.classList.add('hid
+den');
+            // --- 
+LÃ“GICA EFECTIVOS: 
+SOLO Ve AUDITORÃA 
+TESORERIA (Panel 
+Filtrado) ---
+                if 
+(tesoreriaTab) tesoreri
+aTab.classList.remove('
+hidden'); // Ver 
+AuditorÃa
+                if 
+(tesoreriaTab) 
+tesoreriaTab.click();
+                if 
+(operacionesTab) operac
+ionesTab.classList.togg
+le('hidden', userRole 
+=== 'tesoreria');
+                if 
+(tesoreriaTab) tesoreri
+aTab.classList.toggle('
+hidden', userRole === 
+'operaciones');
+                       
+     'Comp. TesorerÃ
+a': sol.comprobanteTeso
+reriaURL || 'N/A',
+                tesorer
+iaTableContainer: docum
+ent.getElementById('tes
+oreria-table-container'
+),
+                tesorer
+iaAlertsContainer: docu
+ment.getElementById('te
+soreria-alerts-containe
+r'),
+                       
+ // FIX: Preserve 
+'efectivos' role even 
+when viewing the 
+tesoreria panel.
+                       
+ if 
+(AppState.currentUser 
+&& AppState.currentUser
+.role === 'efectivos' 
+&& role === 
+'tesoreria') {
+                       
+ updateTesoreriaAlerts(
+);
+            if (AppStat
+e.dom.tesoreriaTableCon
+tainer) {
+                AppStat
+e.dom.tesoreriaTableCon
+tainer.addEventListener
+('click', 
+handleTableActions);
+
+

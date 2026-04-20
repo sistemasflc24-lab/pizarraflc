@@ -1,0 +1,31 @@
+{
+	"folders": [
+		{
+			"path": "../../../Documents/programas"
+		},
+		{
+			"path": "."
+		},
+		{
+			"path": "../../crm-comercial"
+		},
+		{
+			"path": "../../07_Codigo_Web/proyecto constru"
+		},
+		{
+			"path": "../../FirmasFlc"
+		},
+		{
+			"path": "../../N8N"
+		},
+		{
+			"path": "../../baja ia studio"
+		},
+		{
+			"path": "../../07_Codigo_Web/FirmasFlc"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": " (public)"
+	}
+}

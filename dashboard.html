@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pizarra de Operaciones - Vista TV</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #0f172a;
+            /* Slate 900 - Fondo General Oscuro */
+            color: #e2e8f0;
+            overflow: hidden;
+        }
+
+        /* Animación suave para filas nuevas */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Contenedor con scroll oculto pero funcional */
+        #scroll-container {
+            height: calc(100vh - 190px);
+            /* Ajustado para compensar header más alto */
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        #scroll-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* ESTILOS DE LA BARRA DE FLUJO */
+        /* --- FLOW STEPS (COLORES FLUIDOS) --- */
+        .flow-step {
+            height: 12px;
+            width: 24px;
+            background-color: #e2e8f0;
+            /* Slate 200 (Inactivo) */
+            margin-right: 2px;
+            border-radius: 4px;
+            /* Un poco redondeado */
+            display: inline-block;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .flow-step.step-1.active {
+            background-color: #fbbf24;
+            box-shadow: 0 0 4px #fbbf24;
+        }
+
+        /* Amarillo */
+        .flow-step.step-2.active {
+            background-color: #f97316;
+            box-shadow: 0 0 4px #f97316;
+        }
+
+        /* Naranja */
+        .flow-step.step-3.active {
+            background-color: #a855f7;
+            box-shadow: 0 0 4px #a855f7;
+        }
+
+        /* Morado */
+        .flow-step.step-4.active {
+            background-color: #3b82f6;
+            box-shadow: 0 0 4px #3b82f6;
+        }
+
+        /* Azul */
+        .flow-step.step-5.active {
+            background-color: #22c55e;
+            box-shadow: 0 0 4px #22c55e;
+        }
+
+        /* Verde (Pagado) */
+        .flow-step.step-6.active {
+            background-color: #06b6d4;
+            box-shadow: 0 0 4px #06b6d4;
+        }
+
+        /* Cyan (En Ruta) */
+
+        .flow-step.step-7.active {
+            background-color: #10b981;
+            /* Emerald-500 */
+            box-shadow: 0 0 10px #10b981;
+            /* Glow más intenso */
+            border: 1px solid #ffffff;
+        }
+
+        /* Emerald (Entregado) */
+        /* --- TEMA AÑO NUEVO 2026 --- */
+        .new-year-container {
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .year-badge {
+            font-size: 3.5rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, #fcd34d 0%, #fbbf24 50%, #d97706 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.3));
+            animation: pulse-glow 3s infinite alternate;
+        }
+
+        @keyframes pulse-glow {
+            from {
+                filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.2));
+                transform: scale(1);
+            }
+
+            to {
+                filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.6));
+                transform: scale(1.05);
+            }
+        }
+
+        /* Confeti Simple */
+        .confetti {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: #fcd34d;
+            animation: confetti-fall 4s linear infinite;
+            opacity: 0.7;
+        }
+
+        .confetti:nth-child(even) {
+            background-color: #94a3b8;
+            width: 6px;
+            height: 10px;
+        }
+
+        /* Plata */
+        .confetti:nth-child(3n) {
+            background-color: #60a5fa;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        /* Azul */
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(-50px) rotate(0deg);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(200px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Fuegos Artificiales (CSS Puro Simple) */
+        .firework {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            animation: firework-explode 2s ease-out infinite;
+            box-shadow:
+                0 0 0 0 rgba(251, 191, 36, 0),
+                0 0 0 0 rgba(251, 191, 36, 0),
+                0 0 0 0 rgba(251, 191, 36, 0);
+        }
+
+        @keyframes firework-explode {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+                box-shadow: 0 0 0 0 #fcd34d;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(20);
+                opacity: 0;
+                box-shadow:
+                    -20px -20px 0 0 #fcd34d,
+                    20px -20px 0 0 #e2e8f0,
+                    -20px 20px 0 0 #60a5fa,
+                    20px 20px 0 0 #fcd34d;
+            }
+        }
+
+        /* --- ANIMACIONES DE VEHÍCULOS (En Ruta / Entregado) --- */
+        @keyframes drive-pass {
+            0% {
+                transform: translateX(-40px);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                transform: translateX(120px);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateX(140px);
+                opacity: 0;
+            }
+        }
+
+        .truck-animation {
+            position: absolute;
+            bottom: 0px;
+            left: 10px;
+            font-size: 20px;
+            color: #06b6d4;
+            /* Cyan-500 matching 'En Ruta' */
+            animation: drive-pass 3.5s linear infinite;
+            z-index: 20;
+            filter: drop-shadow(0 2px 4px rgba(6, 182, 212, 0.4));
+        }
+
+        @keyframes box-bounce {
+
+            0%,
+            20%,
+            50%,
+            80%,
+            100% {
+                transform: translateY(0);
+            }
+
+            40% {
+                transform: translateY(-6px);
+            }
+
+            60% {
+                transform: translateY(-3px);
+            }
+        }
+
+        .delivered-icon {
+            font-size: 22px;
+            color: #10b981;
+            /* Emerald-500 matching 'Entregado' */
+            animation: box-bounce 2s ease infinite;
+            margin-left: 8px;
+            filter: drop-shadow(0 0 5px rgba(16, 185, 129, 0.5));
+        }
+    </style>
+</head>
+
+<body class="h-screen w-screen flex flex-col" onclick="enableAudio()">
+
+    <!-- ELEMENTO DE AUDIO OCULTO -->
+    <audio id="notification-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="success-sound" preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/1435/1435-preview.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- HEADER DASHBOARD (ALTURA AUMENTADA a 180px) -->
+    <header
+        class="flex justify-between items-center px-8 py-5 bg-slate-800 border-b-4 border-slate-700 shadow-2xl z-10 h-[180px] relative overflow-hidden">
+        <!-- Decoración Año Nuevo (Confeti) -->
+        <div class="confetti" style="left: 10%; animation-delay: 0s;"></div>
+        <div class="confetti" style="left: 25%; animation-delay: 1.5s;"></div>
+        <div class="confetti" style="left: 40%; animation-delay: 0.5s;"></div>
+        <div class="confetti" style="left: 60%; animation-delay: 2s;"></div>
+        <div class="confetti" style="left: 75%; animation-delay: 1s;"></div>
+        <div class="confetti" style="left: 90%; animation-delay: 2.5s;"></div>
+
+        <!-- Fuegos artificiales decorativos -->
+        <div class="firework" style="left: 20%; top: 30%;"></div>
+        <div class="firework" style="left: 80%; top: 40%; animation-delay: 1s;"></div>
+
+        <!-- LOGO Y TÍTULO -->
+        <div
+            class="flex items-center gap-6 shrink-0 z-10 bg-slate-900/40 p-4 rounded-xl backdrop-blur-md border border-slate-600/30 shadow-lg">
+            <div
+                class="h-16 w-16 bg-blue-600 rounded-xl flex items-center justify-center font-black text-white text-3xl shadow-lg shadow-blue-500/30">
+                OP
+            </div>
+            <div>
+                <h1 class="text-4xl font-black tracking-wide text-white drop-shadow-md">PIZARRA OPERATIVA</h1>
+                <p class="text-blue-200 text-base uppercase tracking-[0.2em] font-bold mt-1">Monitor de Flujo (Hoy)</p>
+            </div>
+        </div>
+
+        <!-- CENTRO: CELEBRACIÓN AÑO NUEVO 2026 -->
+        <div class="new-year-container flex-1 mx-4 z-10">
+            <div class="text-center">
+                <div class="text-slate-400 text-xs font-bold tracking-[0.4em] uppercase mb-1">Bienvenido</div>
+                <div class="year-badge">2026</div>
+                <div class="text-slate-400 text-xs font-bold tracking-[0.4em] uppercase mt-1">Exitos</div>
+            </div>
+        </div>
+
+        <!-- RELOJ DIGITAL -->
+        <div
+            class="text-right shrink-0 z-10 bg-slate-900/40 p-4 rounded-xl backdrop-blur-md border border-slate-600/30 shadow-lg">
+            <div id="clock-time"
+                class="text-6xl font-black text-blue-400 font-mono leading-none tracking-tighter drop-shadow-lg">00:00
+            </div>
+            <div id="clock-date" class="text-slate-300 text-lg uppercase font-bold mt-2 tracking-wide">---</div>
+        </div>
+    </header>
+
+    <!-- AVISO DE AUDIO -->
+    <div id="audio-toast"
+        class="hidden absolute top-48 right-8 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-xl animate-bounce z-50 text-lg font-bold">
+        🔊 Haz clic para activar sonido
+    </div>
+
+    <!-- ENCABEZADOS DE TABLA -->
+    <div
+        class="grid grid-cols-12 gap-4 px-8 py-4 bg-slate-900 text-slate-400 font-bold text-lg uppercase tracking-wider border-b border-slate-800">
+        <div class="col-span-1">ID</div>
+        <div class="col-span-2 text-center">Estatus / Flujo</div>
+        <div class="col-span-2">Fecha / Hora</div>
+        <div class="col-span-3">Cliente / Operador</div>
+        <div class="col-span-2 text-right">Monto</div>
+        <div class="col-span-2 text-right">Detalles</div>
+    </div>
+
+    <!-- TABLA DE CONTENIDO -->
+    <main class="flex-1 relative bg-slate-950 px-4 py-4">
+        <div id="scroll-container">
+            <div id="operations-list" class="flex flex-col gap-3">
+                <!-- El contenido se inyectará aquí via JS -->
+                <div class="text-center py-20 text-slate-600 animate-pulse">
+                    <p class="text-2xl">Sincronizando operaciones 2026...</p>
+                </div>
+            </div>
+
+            <!-- ÁREA DE DIAGNÓSTICO -->
+            <div id="debug-area"
+                class="hidden mt-8 mx-4 p-4 bg-red-900/20 border border-red-500/50 rounded text-left font-mono text-xs text-red-200">
+                <h3 class="font-bold text-red-400 text-lg mb-2">⚠️ REPORTE DE CONEXIÓN</h3>
+                <div id="debug-content" class="whitespace-pre-wrap bg-black/50 p-4 rounded"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Firebase Scripts -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, limit, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        // CONFIGURACIÓN DE FIREBASE (Tu proyecto real)
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0j20ZXdcfVioRAfkJn6Uyn_Q2A6blYkI",
+            authDomain: "pizarraflc.appspot.com",
+            projectId: "pizarraflc",
+            storageBucket: "pizarraflc.firebasestorage.app",
+            messagingSenderId: "108471728011",
+            appId: "1:108471728011:web:c0a83b710b37d72c21e18e",
+            measurementId: "G-SJZW3G2P79"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- ESTADO LOCAL PARA CRUCE DE DATOS ---
+        let localOperaciones = [];
+        let localSolicitudes = [];
+        let isOperacionesLoaded = false;
+        let isSolicitudesLoaded = false;
+
+        // Control de sonido
+        let audioEnabled = false;
+        let isFirstLoadSolicitudes = true; // Para no sonar al cargar la página
+        let isFirstLoadOperaciones = true;
+
+        // --- LÓGICA DEL RELOJ ---
+        function updateClock() {
+            const now = new Date();
+            let hours = now.getHours();
+            const ampm = hours >= 12 ? 'p.m.' : 'a.m.';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const strTime = `${hours}:${minutes} <span class="text-3xl text-blue-300 font-bold ml-1">${ampm}</span>`;
+
+            document.getElementById('clock-time').innerHTML = strTime;
+            document.getElementById('clock-date').textContent = now.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase();
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // --- AUDIO & INTERACCIÓN ---
+        window.enableAudio = function () {
+            const audio = document.getElementById('notification-sound');
+            // Intentar reproducir y pausar inmediatamente para desbloquear el audio en el navegador
+            audio.play().then(() => {
+                audio.pause();
+                audio.currentTime = 0;
+                audioEnabled = true;
+                console.log("🔊 Audio activado por usuario");
+                document.getElementById('audio-toast').classList.add('hidden');
+            }).catch(e => console.log("Esperando interacción para audio..."));
+        };
+
+        function playNotification() {
+            if (!audioEnabled) {
+                document.getElementById('audio-toast').classList.remove('hidden');
+                return;
+            }
+            const audio = document.getElementById('notification-sound');
+            audio.currentTime = 0;
+            audio.play().catch(e => console.error("Error reproduciendo audio:", e));
+        }
+
+        function playSuccessNotification() {
+            if (!audioEnabled) return;
+            const audio = document.getElementById('success-sound');
+            if (audio) {
+                audio.currentTime = 0;
+                audio.play().catch(e => console.error("Error Success Sound:", e));
+            }
+        }
+
+        // --- LÓGICA PRINCIPAL ---
+        async function initDashboard() {
+            try {
+                await signInAnonymously(auth);
+                console.log("Autenticado (Anónimo)");
+
+                // 1. ESCUCHAR OPERACIONES (Colección 'operaciones') - AUMENTADO A 80
+                const qOperaciones = query(
+                    collection(db, 'operaciones'),
+                    orderBy('fecha', 'desc'),
+                    limit(80)
+                );
+
+                onSnapshot(qOperaciones, (snapshot) => {
+                    let playStandard = false;
+                    let playSuccess = false;
+
+                    snapshot.docChanges().forEach((change) => {
+                        if (!isFirstLoadOperaciones && (change.type === 'added' || change.type === 'modified')) {
+                            const data = change.doc.data();
+                            const status = (data.status || '').toLowerCase();
+
+                            // 1. Nueva Operación -> Sonido Standard
+                            if (change.type === 'added') {
+                                playStandard = true;
+                                console.log("🔔 Nueva Operación Detectada:", data.id);
+                            }
+
+                            // 2. Cambio a Completado/Pagado (Verde) -> Sonido Success
+                            if (['pagado', 'completado'].includes(status)) {
+                                playSuccess = true;
+                                console.log("✨ Operación Completada/Verde:", data.id);
+                            }
+                        }
+                    });
+
+                    localOperaciones = [];
+                    snapshot.forEach(doc => {
+                        localOperaciones.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    isOperacionesLoaded = true;
+
+                    // Ejecutar sonidos si corresponde y el usuario interactuó
+                    if (playSuccess) playSuccessNotification();
+                    else if (playStandard) playNotification();
+
+                    isFirstLoadOperaciones = false;
+                    renderDashboard();
+                }, (error) => handleFirebaseError(error, 'operaciones'));
+
+                // 2. ESCUCHAR SOLICITUDES (Detectar cambios para el SONIDO)
+                const qSolicitudes = query(
+                    collection(db, 'solicitudes'),
+                    orderBy('fecha', 'desc'),
+                    limit(100)
+                );
+
+                onSnapshot(qSolicitudes, (snapshot) => {
+                    let playStandard = false;
+                    let playSuccess = false;
+
+                    snapshot.docChanges().forEach((change) => {
+                        if (!isFirstLoadSolicitudes && (change.type === 'added' || change.type === 'modified')) {
+                            const data = change.doc.data();
+                            const status = (data.status || '').toLowerCase();
+
+                            // Lógica de Sonidos Distintivos
+                            if (status === 'solicitado') {
+                                playStandard = true;
+                                console.log("🔔 Nuevo Ingreso (Standard):", data.id);
+                            } else if (['orden', 'autorizado', 'pagado', 'completado'].includes(status)) {
+                                playSuccess = true;
+                                console.log("✨ Progreso Exitoso (Success):", data.id);
+                            }
+                        }
+                    });
+
+                    // Actualizar lista local
+                    localSolicitudes = [];
+                    snapshot.forEach(doc => {
+                        localSolicitudes.push({ id: doc.id, ...doc.data() });
+                    });
+
+                    isSolicitudesLoaded = true;
+
+                    // Prioridad de Sonidos
+                    if (playSuccess) playSuccessNotification();
+                    else if (playStandard) playNotification();
+
+                    isFirstLoadSolicitudes = false;
+                    renderDashboard();
+                }, (error) => handleFirebaseError(error, 'solicitudes'));
+
+            } catch (error) {
+                console.error("Error Init:", error);
+                showError(`Error Crítico: ${error.message}`);
+            }
+        }
+
+        function handleFirebaseError(error, collectionName) {
+            console.error(`Error en ${collectionName}:`, error);
+            const debugArea = document.getElementById('debug-area');
+            const debugContent = document.getElementById('debug-content');
+            debugArea.classList.remove('hidden');
+            debugContent.textContent += `\nError en ${collectionName}: ${error.message}`;
+        }
+
+        function showError(msg) {
+            document.getElementById('debug-area').classList.remove('hidden');
+            document.getElementById('debug-content').textContent = msg;
+        }
+
+        // --- RENDERIZADO DEL DASHBOARD (CRUCE DE DATOS) ---
+        function renderDashboard() {
+            if (!isOperacionesLoaded) return;
+
+            const listContainer = document.getElementById('operations-list');
+            const debugArea = document.getElementById('debug-area');
+
+            if (localOperaciones.length === 0) {
+                listContainer.innerHTML = '<div class="text-center py-20 text-slate-500 text-2xl">La colección "operaciones" está vacía.</div>';
+                return;
+            }
+
+            debugArea.classList.add('hidden');
+            listContainer.innerHTML = '';
+
+            // FILTRO HOY
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const todayString = `${year}-${month}-${day}`;
+
+            let countVisible = 0;
+
+            localOperaciones.forEach((op) => {
+                const opDate = op.fecha || "";
+
+                if (opDate === todayString) {
+                    // INTENTO DE CRUCE ROBUSTO:
+                    // 1. Match por Document ID (op.id)
+                    // 2. Match por campo operacionId interno (op.operacionId)
+                    // 3. Match por id (op.id field inside data)
+                    const solicitudEncontrada = localSolicitudes.find(s =>
+                        s.operacionId === op.id ||
+                        (op.operacionId && s.operacionId === op.operacionId) ||
+                        (op.idInterno && s.operacionId === op.idInterno)
+                    );
+
+                    const row = createRow(op.id, op, solicitudEncontrada);
+                    listContainer.appendChild(row);
+                    countVisible++;
+                }
+            });
+
+            if (countVisible === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-20 text-slate-500">
+                        <p class="text-3xl font-light mb-4">Sin operaciones registradas hoy</p>
+                        <span class="text-xl font-mono text-slate-600">(${todayString})</span>
+                    </div>
+                `;
+            }
+        }
+
+        async function fallbackFetch(queryRef) {
+            // Fallback logic kept minimal
+        }
+
+        // --- GENERADOR DE FILA ---
+        function createRow(id, data, solicitud) {
+            const div = document.createElement('div');
+
+            // Lógica de Alerta de Tiempo (> 30 mins)
+            let isDelayed = false;
+            if (data.hora) {
+                try {
+                    const [h, m] = data.hora.split(':').map(Number);
+                    const opDate = new Date();
+                    opDate.setHours(h, m, 0, 0);
+                    const now = new Date();
+                    const diffMins = (now - opDate) / (1000 * 60);
+
+                    // Si pasaron más de 30 mins y sigue en 'solicitado' (o equivalente inicial)
+                    // Nota: Verificamos status abajo, pero aplicamos clase aquí
+                    if (diffMins > 30) {
+                        isDelayed = true;
+                    }
+                } catch (e) { }
+            }
+
+            // Filas más grandes para TV
+            // Base Class
+            let rowClass = "grid grid-cols-12 gap-6 px-8 py-6 bg-white rounded-xl shadow-md border-l-[12px] items-center text-lg fade-in hover:shadow-xl transition-all mb-4";
+
+            // Color de borde por defecto
+            let borderClass = "border-slate-300";
+
+            div.className = `${rowClass} ${borderClass}`;
+
+            const shortId = id.length > 6 ? id.slice(-6).toUpperCase() : id;
+
+            const dateStr = data.fecha || "---";
+            const timeStr = data.hora || "";
+
+            const client = data.solicitante || data.familia || "Cliente General";
+            const operatorName = data.ejecutivo || "Sin Asignar";
+            const operatorDetail = data.operadora || "";
+
+            const amountStrRaw = data.importe || "0";
+            const currency = data.moneda || "MXN";
+            let amountDisplay = amountStrRaw;
+            try {
+                const cleanAmount = String(amountStrRaw).replace(/,/g, '');
+                const val = parseFloat(cleanAmount);
+                if (!isNaN(val)) amountDisplay = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(val);
+            } catch (e) { }
+
+            const type = String(data.esquema || "").toUpperCase();
+            const returnType = String(data.retorno || "").toUpperCase();
+            const opType = String(data.tipo_operacion || "").toUpperCase();
+
+            // --- LÓGICA DE ESTATUS MAESTRA (SOLICITUDES + OPERACIONES) ---
+            let finalStatus = (data.status || "pendiente").toLowerCase();
+            let source = "op";
+            let solData = null;
+
+            if (solicitud) {
+                // Si existe solicitud, le damos prioridad a sus datos para el flujo
+                solData = solicitud;
+                if (solicitud.status) finalStatus = solicitud.status.toLowerCase();
+                source = "sol";
+            }
+
+            let stepLevel = 1;
+            let statusLabel = "Solicitado";
+            let statusColor = "text-yellow-600";
+            let borderColor = "#fbbf24"; // Amarillo default
+
+            // 1. ANÁLISIS POR TIMESTAMPS (Más preciso)
+            if (solData) {
+                // Nivel 2: Orden Generada
+                if (solData.ordenTimestamp) {
+                    stepLevel = 2;
+                    statusLabel = "Ordenada";
+                    borderColor = "#f97316";
+                    statusColor = "text-orange-600";
+                }
+                // Nivel 3: Pre-Autorizada
+                if (solData.preautorizadoTimestamp) {
+                    stepLevel = 3;
+                    statusLabel = "Pre-Auth";
+                    borderColor = "#a855f7";
+                    statusColor = "text-purple-600 font-bold";
+                }
+            }
+
+            // 2. ANÁLISIS POR STATUS
+            // Nivel 4: Autorizado
+            if (finalStatus.includes('autorizado') || finalStatus.includes('dispersando') || finalStatus.includes('proceso')) {
+                stepLevel = 4;
+                statusLabel = "Autorizado";
+                borderColor = "#3b82f6";
+                statusColor = "text-blue-600 font-bold";
+            }
+            // Nivel 5: Pagado / Completado (Tesorería ha dispersado)
+            if (finalStatus.includes('pagado') || finalStatus.includes('completado')) {
+                stepLevel = 5;
+                statusLabel = "Pagado";
+                borderColor = "#22c55e"; // Green-500
+                statusColor = "text-green-600 font-bold";
+            }
+
+            // --- NUEVOS NIVELES: RUTA Y ENTREGA ---
+            if (solData) {
+                // Nivel 6: En Ruta (Conteo confirmado)
+                if (solData.conteoTimestamp) {
+                    stepLevel = 6;
+                    statusLabel = "En Ruta";
+                    borderColor = "#06b6d4"; // Cyan-500
+                    statusColor = "text-cyan-600 font-black animate-pulse";
+                }
+                // Nivel 7: Entregado (Evidencia de entrega o completado final)
+                if (solData.entregaTimestamp || (solData.mobileEvidence && solData.mobileEvidence.length > 0)) {
+                    stepLevel = 7;
+                    statusLabel = "Entregado";
+                    borderColor = "#10b981"; // Emerald-500
+                    statusColor = "text-emerald-700 font-black";
+                }
+            }
+
+            // --- APLICAR ESTILOS FINALES ---
+            // Si está demorado y sigue en paso 1 (Solicitado), marcar ROJO
+            if (isDelayed && stepLevel === 1) {
+                div.style.borderLeftColor = "#ef4444"; // Red-500
+                div.classList.add('animate-pulse'); // Latido suave
+                // Opcional: Fondo rojizo suave
+                div.style.backgroundColor = "#fef2f2";
+            } else {
+                div.style.borderLeftColor = borderColor;
+            }
+
+            // Casos Especiales
+            if (finalStatus.includes('cancelado')) {
+                stepLevel = 0;
+                statusLabel = "Cancelado";
+                borderColor = "#ef4444";
+                statusColor = "text-red-600";
+            }
+
+            // Barra de Progreso expandida (7 Pasos)
+            let extraIconHtml = "";
+            let statusContainerClass = "relative"; // Para posicionamiento absoluto del camión
+
+            // Animación 'En Ruta' (Step 6)
+            if (stepLevel === 6) {
+                extraIconHtml = `<i class="fas fa-truck-fast truck-animation"></i>`;
+            }
+
+            // Icono 'Entregado' (Step 7)
+            if (stepLevel === 7) {
+                // Agregamos icono al label, no flotante
+                statusLabel += ` <i class="fas fa-clipboard-check delivered-icon"></i>`;
+            }
+
+            const progressBarHtml = `
+                <div class="flex justify-center items-center mb-2 bg-slate-100/50 rounded-full px-2 py-1 relative overflow-hidden" title="Fuente: ${source === 'sol' ? 'Solicitud' : 'Operación'}">
+                    ${extraIconHtml}
+                    <div class="flow-step step-1 ${stepLevel >= 1 ? 'active' : ''}" style="width: 26px; height: 16px;"></div>
+                    <div class="flow-step step-2 ${stepLevel >= 2 ? 'active' : ''}" style="width: 26px; height: 16px;"></div>
+                    <div class="flow-step step-3 ${stepLevel >= 3 ? 'active' : ''}" style="width: 26px; height: 16px;"></div>
+                    <div class="flow-step step-4 ${stepLevel >= 4 ? 'active' : ''}" style="width: 26px; height: 16px;"></div>
+                    <div class="flow-step step-5 ${stepLevel >= 5 ? 'active' : ''}" style="width: 26px; height: 16px;"></div>
+                    <div class="flow-step step-6 ${stepLevel >= 6 ? 'active' : ''}" style="width: 26px; height: 16px;"></div>
+                    <div class="flow-step step-7 ${stepLevel >= 7 ? 'active' : ''}" style="width: 26px; height: 16px;"></div>
+                </div>
+            `;
+
+            div.style.borderLeftColor = borderColor;
+
+            div.innerHTML = `
+                <div class="col-span-1 font-black text-slate-800 text-xl truncate">${shortId}</div>
+                <div class="col-span-2 flex flex-col justify-center">
+                    ${progressBarHtml}
+                    <div class="text-center text-sm uppercase tracking-wide font-bold ${statusColor}">
+                        ${statusLabel}
+                    </div>
+                </div>
+                <div class="col-span-2 flex flex-col">
+                    <span class="font-bold text-slate-800 text-xl">${dateStr}</span>
+                    <span class="text-slate-500 text-base font-mono">${timeStr}</span>
+                </div>
+                <div class="col-span-3 flex flex-col justify-center">
+                    <span class="font-bold text-slate-900 text-xl leading-tight truncate uppercase">${client}</span>
+                    <span class="text-slate-500 text-sm uppercase mt-1 truncate font-semibold">
+                        ${operatorName} <span class="text-slate-300">/</span> ${operatorDetail}
+                    </span>
+                </div>
+                <div class="col-span-2 text-right flex flex-col justify-center">
+                    <span class="font-black text-slate-900 text-2xl tracking-tight">${amountDisplay}</span>
+                    <span class="text-slate-500 text-sm font-bold">${currency}</span>
+                </div>
+                <div class="col-span-2 text-right flex flex-col justify-center text-sm">
+                    <span class="text-slate-600 font-bold mb-1 block">
+                        ${opType} <span class="text-slate-300">/</span> ${type}
+                    </span>
+                    <span class="text-slate-400 uppercase font-semibold">
+                        ${returnType}
+                    </span>
+                </div>
+            `;
+            return div;
+        }
+
+        // --- AUTO SCROLL ---
+        function startAutoScroll() {
+            const container = document.getElementById('scroll-container');
+            let scrollSpeed = 1;
+            setInterval(() => {
+                const maxScroll = container.scrollHeight - container.clientHeight;
+                if (maxScroll <= 0) return;
+                container.scrollTop += scrollSpeed;
+                if (container.scrollTop >= maxScroll) {
+                    setTimeout(() => { container.scrollTop = 0; }, 2000);
+                }
+            }, 50);
+        }
+
+        initDashboard();
+        setTimeout(startAutoScroll, 4000);
+        // Recarga diaria para mantenimiento (86,400,000 ms = 24h)
+        // Esto mantiene la memoria fresca sin generar costos excesivos de lectura
+        setInterval(() => {
+            console.log("♻️ Mantenimiento diario del sistema...");
+            window.location.reload();
+        }, 86400000);
+    </script>
+</body>
+
+</html>

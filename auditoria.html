@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuditPro - Reporte de Auditoría</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #0a0e1a;
+            color: white;
+            min-height: 100vh;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        header {
+            background-color: #0d1220;
+            border-bottom: 1px solid #374151;
+            padding: 1rem 1.5rem;
+        }
+
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo-icon {
+            width: 2rem;
+            height: 2rem;
+            background-color: #2563eb;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.875rem;
+        }
+
+        .logo-text {
+            font-size: 1.25rem;
+            font-weight: bold;
+        }
+
+        nav {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        nav a {
+            color: #9ca3af;
+            text-decoration: none;
+            padding-bottom: 1rem;
+            transition: color 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+
+        nav a:hover {
+            color: white;
+        }
+
+        nav a.active {
+            color: white;
+            border-bottom-color: #2563eb;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        /* Sidebar */
+        .main-layout {
+            display: flex;
+            min-height: calc(100vh - 73px);
+        }
+
+        .sidebar {
+            width: 16rem;
+            background-color: #0d1220;
+            border-right: 1px solid #374151;
+            padding: 1.5rem;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            color: #9ca3af;
+            text-decoration: none;
+            transition: background-color 0.3s;
+        }
+
+        .sidebar-nav a:hover {
+            background-color: #1a2332;
+        }
+
+        .sidebar-nav a.active {
+            background-color: #2563eb;
+            color: white;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+        }
+
+        .content-container {
+            max-width: 80rem;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 2rem;
+        }
+
+        .page-title h1 {
+            font-size: 2.25rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Metrics */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .metric-card {
+            background-color: #1a2332;
+            border: 1px solid #374151;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .metric-label {
+            font-size: 0.875rem;
+            color: #9ca3af;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Timeline */
+        .timeline-container {
+            margin-top: 2rem;
+        }
+
+        .view-section {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Workflow Bar CSS */
+        .progress-bar-container {
+            display: flex;
+            width: 100%;
+            height: auto;
+            flex-direction: column;
+            margin-top: 1rem;
+        }
+
+        .progress-steps {
+            display: flex;
+            width: 100%;
+            height: 24px;
+            border-radius: 12px;
+            overflow: hidden;
+            background-color: #334155;
+            /* Slate-700 for dark mode */
+        }
+
+        .progress-step {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            opacity: 0.3;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.active {
+            opacity: 1;
+        }
+
+        .progress-labels {
+            display: flex;
+            justify-content: space-around;
+            font-size: 0.65rem;
+            color: #94a3b8;
+            /* Slate-400 */
+            margin-top: 4px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-container">
+            <div class="header-left">
+                <div class="logo">
+                    <div class="logo-icon">VP</div>
+                    <span class="logo-text">AuditPro</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <span class="text-sm text-gray-400">Satellite App Connected</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-nav">
+                <a href="#dashboard" class="nav-item active">
+                    <span class="icon">📊</span> Dashboard
+                </a>
+                <a href="#timeline" class="nav-item">
+                    <span class="icon">⏱️</span> Timeline
+                </a>
+                <a href="#evidence" class="nav-item">
+                    <span class="icon">📁</span> Evidence
+                </a>
+                <a href="#aclaraciones" class="nav-item">
+                    <span class="icon">⚠️</span> Aclaraciones
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- DASHBOARD VIEW -->
+            <div id="dashboard-view" class="view-section">
+                <div class="content-container">
+                    <div class="page-header">
+                        <div class="page-title">
+                            <h1>Dashboard de Auditoría</h1>
+                            <p>Resumen en tiempo real de operaciones</p>
+                        </div>
+                    </div>
+
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-label">TOTAL OPERACIONES</div>
+                            <div class="metric-value" id="kpi-total-ops">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">PENDIENTES AUDITORÍA</div>
+                            <div class="metric-value" style="color: #f59e0b;" id="kpi-pending-audit">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">ACLARACIONES</div>
+                            <div class="metric-value" style="color: #a855f7;" id="kpi-aclaraciones">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">CANCELADAS / ISSUES</div>
+                            <div class="metric-value" style="color: #ef4444;" id="kpi-issues">0</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">IMPORTE ACTIVO</div>
+                            <div class="metric-value" style="color: #10b981;" id="kpi-total-amount">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TIMELINE VIEW -->
+            <div id="timeline-view" class="view-section hidden">
+                <div class="content-container">
+                    <div class="page-header">
+                        <div class="page-title">
+                            <h1>Línea de Tiempo</h1>
+                            <p>Flujo de operaciones recientes</p>
+                        </div>
+                    </div>
+
+                    <!-- Filter Panel -->
+                    <div class="bg-slate-800 p-5 rounded-lg mb-6 border border-slate-700 shadow-sm">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                            <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wide"><i
+                                    class="fas fa-filter mr-2"></i>Filtros Avanzados</h3>
+                            <button id="btn-reset-filters"
+                                class="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                                <i class="fas fa-undo mr-1"></i>Limpiar Filtros
+                            </button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <!-- Búsqueda Texto -->
+                            <!-- Búsqueda Texto (Estilo Nuevo) -->
+                            <div class="md:col-span-1">
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Buscar en tabla...</label>
+                                <div class="relative">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i class="fas fa-search text-gray-400"></i>
+                                    </div>
+                                    <input type="text" id="filter-search" placeholder="Buscar en tabla..."
+                                        class="w-full bg-white border border-slate-300 rounded-md pl-10 pr-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow shadow-sm">
+                                </div>
+                            </div>
+
+                            <!-- Estado del Flujo -->
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Estado de Flujo</label>
+                                <select id="filter-status"
+                                    class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+                                    <option value="">Todos los Estados</option>
+                                    <option value="pre-orden">Pre-Orden</option>
+                                    <option value="orden">Orden</option>
+                                    <option value="pre-autorizado">Pre-Autorizado</option>
+                                    <option value="autorizado">Autorizado</option>
+                                    <option value="completado">Completado</option>
+                                    <option value="conciliado">Conciliado</option>
+                                    <option value="cancelado">Cancelado</option>
+                                </select>
+                            </div>
+
+                            <!-- Ejecutivo -->
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Ejecutivo</label>
+                                <select id="filter-executive"
+                                    class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+                                    <option value="">Todos</option>
+                                    <!-- Inyectado JS -->
+                                </select>
+                            </div>
+
+                            <!-- Rango Importe -->
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Mínimo Importe</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2 text-slate-500">$</span>
+                                    <input type="number" id="filter-amount-min" placeholder="0.00"
+                                        class="w-full bg-slate-900 border border-slate-600 rounded pl-7 pr-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+                                </div>
+                            </div>
+
+                            <!-- Fechas -->
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Rango de Fechas</label>
+                                <div class="flex gap-2">
+                                    <input type="date" id="filter-date-start"
+                                        class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+                                    <span class="text-slate-500 self-center">-</span>
+                                    <input type="date" id="filter-date-end"
+                                        class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+                                </div>
+                            </div>
+
+                            <!-- Selector Semana -->
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Semana</label>
+                                <select id="filter-week"
+                                    class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+                                    <option value="">Todas las Semanas</option>
+                                    <!-- Inyectado JS -->
+                                </select>
+                            </div>
+
+                            <!-- Selector Comprobantes (NUEVO) -->
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Comprobantes</label>
+                                <select id="filter-missing-evidence" onchange="applyFilters()"
+                                    class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 transition-colors">
+                                    <option value="">Todos</option>
+                                    <option value="missing">⚠️ Sin Comprobante</option>
+                                    <option value="present">✅ Con Comprobante</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Contador de Resultados -->
+                        <div class="mt-4 pt-3 border-t border-slate-700 text-right">
+                            <span class="text-xs text-slate-400">Mostrando: <strong id="filter-results-count"
+                                    class="text-white">0</strong> operaciones</span>
+                        </div>
+                    </div>
+
+                    <!-- Contenedor dinámico llenado por auditApp.js -->
+                    <div id="timeline-container">
+                        <p class="text-gray-500 text-center py-10">Cargando operaciones...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVIDENCE VIEW -->
+            <div id="evidence-view" class="view-section hidden">
+                <div class="content-container">
+                    <div class="page-header">
+                        <div class="page-title">
+                            <h1>Gestión de Evidencia</h1>
+                            <p>Solicitudes con adjuntos y comprobantes</p>
+                        </div>
+                    </div>
+                    <!-- Contenedor dinámico llenado por auditApp.js -->
+                    <div id="evidence-list" class="grid grid-cols-1 gap-4">
+                        <p class="text-gray-500 text-center py-10">Buscando evidencia...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACLARACIONES VIEW -->
+            <div id="aclaraciones-view" class="view-section hidden">
+                <div class="content-container !max-w-[1600px] px-4">
+                    <div class="page-header">
+                        <div class="page-title">
+                            <h1>Aclaraciones y Seguimiento</h1>
+                            <p>Gestión de casos e incidencias por auditoría</p>
+                        </div>
+                    </div>
+
+                    <!-- Filter Panel -->
+                    <div class="bg-slate-800 p-5 rounded-lg mb-6 border border-slate-700 shadow-sm">
+                        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2">
+                            <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wide"><i
+                                    class="fas fa-filter mr-2"></i>Filtros de Casos</h3>
+                            <div class="flex items-center gap-3">
+                                <button id="btn-export-aclaraciones"
+                                    class="text-xs text-green-400 hover:text-green-300 transition-colors flex items-center gap-1 border border-green-900/50 px-2 py-1 rounded bg-slate-900/50">
+                                    <i class="fas fa-file-excel"></i> Exportar Reporte
+                                </button>
+                                <button id="btn-email-aclaraciones"
+                                    class="text-xs text-purple-400 hover:text-purple-300 transition-colors flex items-center gap-1 border border-purple-900/50 px-2 py-1 rounded bg-slate-900/50">
+                                    <i class="fas fa-paper-plane"></i> Enviar por Email
+                                </button>
+                                <button id="btn-reset-aclaracion-filters"
+                                    class="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+                                    <i class="fas fa-undo mr-1"></i>Limpiar
+                                </button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Estado</label>
+                                <select id="filter-aclaracion-status"
+                                    class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="">Todos</option>
+                                    <option value="abierta">Abierta</option>
+                                    <option value="en_proceso">En Proceso</option>
+                                    <option value="pendiente_respuesta">Pendiente Respuesta</option>
+                                    <option value="cerrada">Cerrada</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Prioridad</label>
+                                <select id="filter-aclaracion-priority"
+                                    class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                                    <option value="">Todas</option>
+                                    <option value="baja">Baja</option>
+                                    <option value="media">Media</option>
+                                    <option value="alta">Alta</option>
+                                </select>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-xs font-medium text-slate-400 mb-1">Buscar
+                                    (Folio/Cliente)</label>
+                                <input type="text" id="filter-aclaracion-search" placeholder="Escribe para buscar..."
+                                    class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Split View Container -->
+                    <div class="flex flex-col lg:flex-row gap-6 h-[850px]">
+                        <!-- LEFT: List (Master) -->
+                        <div class="w-full lg:w-1/3 flex flex-col bg-slate-800 rounded-lg border border-slate-700">
+                            <div class="p-3 border-b border-slate-700 bg-slate-800/50 font-bold text-slate-300 text-sm">
+                                <i class="fas fa-list mr-2"></i>Lista de Casos
+                            </div>
+                            <div id="aclaraciones-list" class="flex-1 overflow-y-auto p-3 space-y-3">
+                                <!-- Rendered dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- RIGHT: Details (Detail) -->
+                        <div class="w-full lg:w-2/3 bg-slate-800 rounded-lg border border-slate-700 flex flex-col items-center justify-center p-8 text-center"
+                            id="aclaraciones-detail-panel">
+                            <!-- Placeholder text -->
+                            <div class="text-slate-600">
+                                <i class="fas fa-hand-pointer text-4xl mb-4 opacity-50"></i>
+                                <h3 class="text-lg font-bold text-slate-400">Selecciona un caso</h3>
+                                <p class="text-sm text-slate-500">Haz clic en un ítem de la izquierda para ver los
+                                    detalles y auditar.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+
+        </main>
+    </div>
+
+    <!-- FIREBASE SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <!-- Excel Export Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <!-- Main Logic -->
+    <script src="auditApp.js?v=1.36"></script>
+
+    <!-- UI: Modal de Auditoría -->
+    <div id="audit-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <!-- Backdrop -->
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm"
+            onclick="closeAuditModal()"></div>
+
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+
+                <div
+                    class="relative transform overflow-hidden rounded-lg bg-slate-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-4xl border border-slate-700">
+
+                    <!-- Header -->
+                    <div
+                        class="bg-slate-900 px-4 py-3 sm:px-6 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="text-lg font-semibold leading-6 text-white" id="modal-title">
+                            Auditoría de Operación
+                        </h3>
+                        <button type="button" class="text-gray-400 hover:text-white" onclick="closeAuditModal()">
+                            <span class="sr-only">Cerrar</span>
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div class="px-4 py-5 sm:p-6 space-y-6">
+
+                        <!-- Info Grid -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="modal-info-grid">
+                            <!-- Inyectado por JS -->
+                        </div>
+
+                        <!-- Conceptos Table -->
+                        <div class="bg-slate-900 rounded-lg p-4">
+                            <h4 class="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">Conceptos /
+                                Desglose</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-slate-700">
+                                    <thead class="bg-slate-800">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-3 py-2 text-left text-xs font-medium text-gray-300 uppercase">
+                                                Concepto</th>
+                                            <th scope="col"
+                                                class="px-3 py-2 text-right text-xs font-medium text-gray-300 uppercase">
+                                                Cantidad</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-700" id="modal-concepts-list">
+                                        <!-- Inyectado por JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Evidencia Section -->
+                        <div>
+                            <h4 class="text-sm font-medium text-gray-400 mb-3 uppercase tracking-wider">Evidencia
+                                Adjunta</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="modal-evidence-grid">
+                                <!-- Inyectado por JS -->
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Footer / Actions -->
+                    <div
+                        class="bg-slate-900 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-3 border-t border-slate-700">
+                        <button type="button"
+                            class="inline-flex w-full justify-center rounded-md bg-green-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-500 sm:w-auto"
+                            onclick="confirmarAuditoria()">
+                            <i class="fas fa-check mr-2"></i> Conciliar / Aprobar
+                        </button>
+                        <button type="button"
+                            class="mt-3 inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:mt-0 sm:w-auto"
+                            onclick="reportarIssue()">
+                            <i class="fas fa-exclamation-triangle mr-2"></i> Reportar Issue
+                        </button>
+                        <button type="button"
+                            class="mt-3 inline-flex w-full justify-center rounded-md bg-slate-700 px-3 py-2 text-sm font-semibold text-white shadow-sm ring-1 ring-inset ring-slate-600 hover:bg-slate-600 sm:mt-0 sm:w-auto mr-auto"
+                            onclick="closeAuditModal()">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI: Drawer Overlay (Backdrop) -->
+    <div id="drawer-overlay" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden transition-opacity"
+        onclick="toggleAclaracionesDrawer(false)"></div>
+
+    <!-- UI: Drawer de Aclaraciones (Side Panel) -->
+    <div id="aclaraciones-drawer"
+        class="fixed inset-y-0 right-0 w-96 bg-slate-900 border-l border-slate-700 shadow-2xl transform translate-x-full transition-transform duration-300 z-50 flex flex-col">
+        <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800">
+            <h3 class="font-bold text-white text-lg"><i
+                    class="fas fa-exclamation-circle text-yellow-500 mr-2"></i>Aclaraciones</h3>
+            <button onclick="toggleAclaracionesDrawer(false)" class="text-slate-400 hover:text-white">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <!-- TOP HALF: Aclaraciones (Issues) -->
+        <div class="h-1/2 flex flex-col border-b border-slate-700">
+            <div
+                class="px-4 py-2 bg-slate-800/50 text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between items-center">
+                <span><i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>En Aclaración</span>
+                <span id="badge-aclaraciones-count"
+                    class="bg-yellow-900 text-yellow-200 px-1.5 rounded-full text-[10px]">0</span>
+            </div>
+            <div id="drawer-aclaraciones-list" class="flex-1 overflow-y-auto p-4 space-y-3">
+                <!-- Content Aclaraciones -->
+            </div>
+        </div>
+
+        <!-- BOTTOM HALF: Quick Audit Queue (Pendientes) -->
+        <div class="h-1/2 flex flex-col">
+            <div
+                class="px-4 py-2 bg-slate-800/50 text-xs font-bold text-slate-400 uppercase tracking-wider flex justify-between items-center">
+                <span><i class="fas fa-hourglass-half text-blue-500 mr-2"></i>Cola de Auditoría (Top 20)</span>
+                <span id="badge-queue-count" class="bg-blue-900 text-blue-200 px-1.5 rounded-full text-[10px]">0</span>
+            </div>
+            <div id="drawer-audit-queue" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-900/50">
+                <!-- Content Queue -->
+            </div>
+        </div>
+        <div class="p-4 border-t border-slate-700 bg-slate-800">
+            <button onclick="toggleAclaracionesDrawer(false)"
+                class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded transition-colors flex items-center justify-center">
+                <i class="fas fa-arrow-right mr-2"></i> Cerrar Panel
+            </button>
+        </div>
+    </div>
+
+    <!-- UI: Modal de Aclaración -->
+    <div id="aclaracion-modal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity backdrop-blur-sm"
+            onclick="closeAclaracionModal()"></div>
+        <div class="fixed inset-0 z-10 overflow-y-auto">
+            <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+                <div
+                    class="relative transform overflow-hidden rounded-lg bg-slate-800 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-2xl border border-slate-700">
+                    <div
+                        class="bg-slate-900 px-4 py-3 sm:px-6 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="text-lg font-semibold leading-6 text-white" id="aclaracion-modal-title">Detalle
+                            de Aclaración</h3>
+                        <button type="button" class="text-gray-400 hover:text-white" onclick="closeAclaracionModal()">
+                            <span class="sr-only">Cerrar</span>
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5"
+                                stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="px-4 py-5 sm:p-6 space-y-4">
+                        <!-- Info Resumen -->
+                        <div id="aclaracion-info-summary" class="bg-slate-700 p-3 rounded text-sm text-gray-300">
+                            <!-- Inyectado JS -->
+                        </div>
+
+                        <!-- Formulario Edición -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-400">Estado</label>
+                                <select id="edit-aclaracion-status"
+                                    class="mt-1 block w-full rounded-md border-gray-600 bg-slate-700 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                    <option value="abierta">Abierta</option>
+                                    <option value="en_proceso">En Proceso</option>
+                                    <option value="pendiente_respuesta">Pendiente Respuesta</option>
+                                    <option value="cerrada">Cerrada</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-400">Prioridad</label>
+                                <select id="edit-aclaracion-priority"
+                                    class="mt-1 block w-full rounded-md border-gray-600 bg-slate-700 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                    <option value="baja">Baja</option>
+                                    <option value="media">Media</option>
+                                    <option value="alta">Alta</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-xs font-medium text-gray-400">Motivo</label>
+                                <select id="edit-aclaracion-motivo"
+                                    class="mt-1 block w-full rounded-md border-gray-600 bg-slate-700 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
+                                    <option value="SAT/Clave">SAT / Clave ProdServ</option>
+                                    <option value="Concepto">Concepto Erróneo</option>
+                                    <option value="Importe">Diferencia Importe</option>
+                                    <option value="Evidencia">Evidencia Insuficiente</option>
+                                    <option value="Proveedor">Datos Proveedor</option>
+                                    <option value="Duplicidad">Posible Duplicidad</option>
+                                    <option value="Otro">Otro</option>
+                                </select>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-xs font-medium text-gray-400">Notas / Bitácora</label>
+                                <textarea id="edit-aclaracion-nota" rows="4"
+                                    class="mt-1 block w-full rounded-md border-gray-600 bg-slate-700 text-white shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                                    placeholder="Agrega detalles o actualizaciones..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6 gap-2">
+                        <button type="button"
+                            class="inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-500 sm:w-auto"
+                            onclick="saveAclaracion()">Guardar Cambios</button>
+                        <button type="button"
+                            class="mt-3 inline-flex w-full justify-center rounded-md bg-slate-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-600 sm:mt-0 sm:w-auto"
+                            onclick="closeAclaracionModal()">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+</body>
+
+</html>

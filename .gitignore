@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+functions/node_modules/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase_debug.log
+*.log
+
+# Archivos grandes / binarios que no son código fuente
+*.zip
+*.xlsx
+*.xls
+
+# Archivos temporales y de prueba
+_tmp_*.js
+excel_output*.txt
+extract_excel*.js
+deploy_log.txt
+PRUEBA
+
+# Editor
+.vscode/
+.idea/
+
+# Sistema operativo
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Claves y secretos (por si acaso)
+*.pem
+*.key
+serviceAccount*.json
+.env
+.env.*

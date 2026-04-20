@@ -1,0 +1,20 @@
+{
+  "name": "pizarraflc-functions",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "repair:importe:dry": "node scripts/repair_importe_overrides.js",
+    "repair:importe:apply": "node scripts/repair_importe_overrides.js --apply"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "@google-cloud/documentai": "^9.6.0",
+    "@google-cloud/vision": "^5.3.5",
+    "firebase-admin": "^12.1.1",
+    "firebase-functions": "^6.0.1",
+    "pdf-parse": "^1.1.1",
+    "unzipper": "^0.12.3"
+  }
+}

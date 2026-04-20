@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pizarra GI · Móvil</title>
+
+    <link rel="manifest" href="manifest_gi.json">
+    <link rel="icon" type="image/png" href="FLC original.png">
+    <link rel="apple-touch-icon" href="FLC original.png">
+    <meta name="theme-color" content="#4f46e5">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+
+    <style>
+        :root {
+            --gi-primary: #4f46e5;
+            --gi-primary-dark: #3730a3;
+            --gi-bg: #0f172a;
+            --gi-card: #ffffff;
+            --gi-surface: #f8fafc;
+        }
+
+        * { font-family: 'Inter', system-ui, sans-serif; }
+
+        body {
+            background:
+                radial-gradient(1200px 600px at -10% -10%, rgba(99, 102, 241, 0.10), transparent 60%),
+                radial-gradient(1000px 500px at 110% 0%, rgba(14, 165, 233, 0.08), transparent 55%),
+                #f1f5f9;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 100vh;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.72);
+            backdrop-filter: saturate(140%) blur(14px);
+            -webkit-backdrop-filter: saturate(140%) blur(14px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .card-gi {
+            background: #ffffff;
+            border-radius: 20px;
+            box-shadow:
+                0 1px 2px rgba(15, 23, 42, 0.04),
+                0 8px 24px -12px rgba(15, 23, 42, 0.10);
+            transition: transform .15s ease, box-shadow .2s ease;
+            overflow: hidden;
+            position: relative;
+        }
+        .card-gi:active { transform: scale(0.985); }
+
+        .card-gi::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 6px;
+            border-radius: 20px 0 0 20px;
+        }
+        .card-gi.c-preorden::before { background: linear-gradient(180deg, #f59e0b, #d97706); }
+        .card-gi.c-orden::before    { background: linear-gradient(180deg, #f97316, #ea580c); }
+        .card-gi.c-preauth::before  { background: linear-gradient(180deg, #a855f7, #7c3aed); }
+        .card-gi.c-auth::before     { background: linear-gradient(180deg, #3b82f6, #1d4ed8); }
+        .card-gi.c-done::before     { background: linear-gradient(180deg, #10b981, #059669); }
+        .card-gi.c-conc::before     { background: linear-gradient(180deg, #94a3b8, #64748b); }
+
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 999px;
+            display: inline-block; margin-right: 6px;
+        }
+        .status-dot.pulse {
+            animation: pulse 1.8s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%,100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.35); opacity: .5; }
+        }
+
+        .fab {
+            position: fixed;
+            bottom: 20px; right: 20px;
+            border-radius: 999px;
+            width: 58px; height: 58px;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 12px 24px -6px rgba(79, 70, 229, 0.45);
+            z-index: 50;
+        }
+
+        #login-overlay {
+            position: fixed; inset: 0;
+            background:
+                radial-gradient(800px 500px at 50% 0%, rgba(99,102,241,.45), transparent 60%),
+                linear-gradient(180deg, #0f172a 0%, #1e293b 100%);
+            z-index: 100;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 2rem;
+            color: white;
+        }
+
+        .login-input {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: white;
+            transition: border-color .2s ease, background .2s ease;
+        }
+        .login-input::placeholder { color: rgba(255,255,255,0.45); }
+        .login-input:focus { border-color: #818cf8; background: rgba(255,255,255,0.12); outline: none; }
+
+        .tab-pill {
+            transition: all .2s ease;
+        }
+
+        #flow-modal { transition: opacity .25s ease; }
+        #flow-modal-content {
+            transition: transform .3s cubic-bezier(.2,.8,.2,1);
+        }
+
+        .section-title {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: #64748b;
+            display: flex; align-items: center;
+            margin-bottom: 10px;
+        }
+        .kv-row {
+            display: grid;
+            grid-template-columns: 40% 60%;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+        .kv-row + .kv-row { border-top: 1px dashed #e2e8f0; }
+        .kv-row .k { color: #64748b; font-weight: 500; }
+        .kv-row .v { color: #0f172a; font-weight: 600; text-align: right; }
+
+        .chip {
+            display: inline-flex; align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .02em;
+        }
+
+        .tbl-gi {
+            width: 100%;
+            font-size: 12px;
+            border-collapse: collapse;
+        }
+        .tbl-gi th {
+            text-align: left;
+            font-weight: 700;
+            color: #64748b;
+            font-size: 10px;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            padding: 6px 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .tbl-gi td {
+            padding: 8px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #0f172a;
+        }
+        .tbl-gi tr.total-row td {
+            font-weight: 800;
+            background: #f8fafc;
+            color: #0f172a;
+            border-top: 2px solid #cbd5e1;
+            border-bottom: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(180deg, #6366f1, #4338ca);
+            color: white;
+            font-weight: 700;
+            padding: 12px 18px;
+            border-radius: 14px;
+            box-shadow: 0 8px 20px -8px rgba(67, 56, 202, .5);
+            transition: transform .12s ease, box-shadow .2s ease;
+        }
+        .btn-primary:active { transform: scale(.97); }
+        .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+        .btn-auth {
+            background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+            box-shadow: 0 8px 20px -8px rgba(29, 78, 216, .5);
+        }
+        .btn-approve {
+            background: linear-gradient(180deg, #a855f7, #7c3aed);
+            box-shadow: 0 8px 20px -8px rgba(124, 58, 237, .5);
+        }
+
+        .skeleton {
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.2s infinite;
+            border-radius: 8px;
+        }
+        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+        .hero-gradient {
+            background: linear-gradient(135deg, #1e293b 0%, #4338ca 60%, #6366f1 100%);
+        }
+
+        .pin-dot {
+            width: 14px; height: 14px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            transition: background .15s ease, transform .15s ease;
+        }
+        .pin-dot.filled { background: #4f46e5; transform: scale(1.1); }
+
+        @keyframes slideIn {
+            from { transform: translateY(-16px); opacity: 0; }
+            to   { transform: translateY(0); opacity: 1; }
+        }
+        .new-item { animation: slideIn .35s ease-out; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+
+<body class="pb-24">
+
+    <!-- ===================== LOGIN OVERLAY ===================== -->
+    <div id="login-overlay">
+        <div class="w-24 h-24 rounded-full glass mb-6 flex items-center justify-center">
+            <img src="FLC original.png" alt="Logo" class="w-16 h-16 rounded-full">
+        </div>
+        <h2 class="text-3xl font-black tracking-tight mb-1">Pizarra GI</h2>
+        <p class="text-slate-300 mb-10 text-sm">Gastos Internos · Móvil</p>
+
+        <div class="w-full max-w-sm space-y-3">
+            <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase mb-2 tracking-wider">Usuario / Email</label>
+                <input type="text" id="login-user"
+                    class="login-input w-full p-3.5 rounded-xl text-base"
+                    placeholder="ej: adm01 o correo@dominio.com" autocomplete="username">
+            </div>
+            <div>
+                <label class="block text-[11px] font-bold text-slate-400 uppercase mb-2 tracking-wider">Contraseña</label>
+                <input type="password" id="login-pass"
+                    class="login-input w-full p-3.5 rounded-xl text-base"
+                    placeholder="••••••" autocomplete="current-password">
+            </div>
+            <button onclick="handleLogin()" id="btn-login"
+                class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-[.98] transition-transform">
+                Iniciar Sesión
+            </button>
+            <p id="login-error"
+                class="text-red-200 text-center text-sm hidden bg-red-500/20 border border-red-500/30 p-2.5 rounded-lg"></p>
+        </div>
+        <p class="text-slate-500 text-[11px] mt-8 uppercase tracking-widest">proyecto pizarraflc</p>
+    </div>
+
+    <!-- ===================== HEADER ===================== -->
+    <header class="hero-gradient text-white px-4 pt-4 pb-6 sticky top-0 z-40 shadow-xl rounded-b-3xl">
+        <div class="flex justify-between items-start">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <div class="w-2 h-2 bg-emerald-400 rounded-full" id="connection-status"></div>
+                    <span class="text-[10px] uppercase tracking-widest text-indigo-200 font-semibold">Gastos Internos</span>
+                </div>
+                <h1 class="text-2xl font-black tracking-tight leading-none">Pizarra GI</h1>
+                <p class="text-xs text-indigo-200 mt-1.5" id="user-greeting">—</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="app-version"
+                    class="text-[9px] font-bold tracking-wider text-indigo-200 border border-indigo-400/40 rounded-full px-2 py-0.5">
+                    v--
+                </span>
+                <button onclick="handleLogout()" class="bg-white/10 hover:bg-white/20 w-9 h-9 rounded-full flex items-center justify-center transition-colors">
+                    <i class="fas fa-sign-out-alt text-sm"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Role badge -->
+        <div class="mt-4 flex items-center gap-2">
+            <span id="role-badge" class="chip bg-white/15 text-white">—</span>
+            <span id="counter-badge" class="chip bg-indigo-400/25 text-indigo-100">0 pendientes</span>
+        </div>
+    </header>
+
+    <!-- ===================== ADMIN TOGGLE (PENDIENTES / COMPLETADOS) ===================== -->
+    <div id="admin-view-toggle" class="hidden px-4 pt-4">
+        <div class="glass rounded-2xl p-1 grid grid-cols-2 gap-1">
+            <button onclick="setAdminViewMode('PENDIENTES')" id="admin-view-pendientes"
+                class="tab-pill rounded-xl py-2.5 text-xs font-bold bg-slate-800 text-white">
+                <i class="fas fa-hourglass-half mr-1.5"></i> Pendientes
+            </button>
+            <button onclick="setAdminViewMode('COMPLETADOS')" id="admin-view-completados"
+                class="tab-pill rounded-xl py-2.5 text-xs font-bold text-slate-500">
+                <i class="fas fa-check mr-1.5"></i> Completados
+            </button>
+        </div>
+    </div>
+
+    <!-- ===================== FILTER TABS (HOY / AYER / TODOS) ===================== -->
+    <div id="filter-tabs" class="hidden px-4 pt-4">
+        <div class="glass rounded-2xl p-1 grid grid-cols-3 gap-1">
+            <button onclick="setFilter('HOY')" id="tab-hoy" class="tab-pill rounded-xl py-2 text-xs font-bold bg-slate-800 text-white">HOY</button>
+            <button onclick="setFilter('AYER')" id="tab-ayer" class="tab-pill rounded-xl py-2 text-xs font-bold text-slate-500">AYER</button>
+            <button onclick="setFilter(getThirdFilterValue())" id="tab-todos" class="tab-pill rounded-xl py-2 text-xs font-bold text-slate-500">TODOS</button>
+        </div>
+    </div>
+
+    <!-- ===================== REQUESTS LIST ===================== -->
+    <div id="requests-container" class="p-4 space-y-3">
+        <div class="card-gi p-5">
+            <div class="skeleton h-4 w-24 mb-2"></div>
+            <div class="skeleton h-6 w-3/4 mb-2"></div>
+            <div class="skeleton h-4 w-1/2"></div>
+        </div>
+        <div class="card-gi p-5">
+            <div class="skeleton h-4 w-24 mb-2"></div>
+            <div class="skeleton h-6 w-2/3 mb-2"></div>
+            <div class="skeleton h-4 w-1/2"></div>
+        </div>
+    </div>
+
+    <!-- ===================== FAB (Notificaciones) ===================== -->
+    <button id="btn-enable-notif" class="fab bg-indigo-600 text-white hidden" onclick="requestNotificationPermission()">
+        <i class="fas fa-bell"></i>
+    </button>
+
+    <!-- ===================== PIN MODAL ===================== -->
+    <div id="pin-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-7 w-full max-w-sm text-center shadow-2xl">
+            <div class="w-14 h-14 mx-auto mb-4 bg-indigo-100 rounded-2xl flex items-center justify-center">
+                <i class="fas fa-lock text-indigo-600 text-xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-1">Autorización Final</h3>
+            <p class="text-sm text-slate-500 mb-6">Ingresa tu PIN de 6 dígitos</p>
+
+            <div class="flex justify-center gap-2 mb-6" id="pin-dots">
+                <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
+                <span class="pin-dot"></span><span class="pin-dot"></span><span class="pin-dot"></span>
+            </div>
+            <input type="password" id="pin-input" maxlength="6" inputmode="numeric"
+                class="opacity-0 absolute -z-10"
+                oninput="updatePinDots(this.value)"
+                onkeydown="if(event.key==='Enter')confirmAuthorize()">
+
+            <div class="grid grid-cols-3 gap-2 mb-5" id="pin-keypad">
+                <!-- Keypad numbers injected by JS -->
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="closePinModal()" class="py-3 bg-slate-100 text-slate-600 rounded-xl font-semibold">Cancelar</button>
+                <button onclick="confirmAuthorize()" class="py-3 btn-primary btn-auth rounded-xl">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== FLOW / DETAIL MODAL ===================== -->
+    <div id="flow-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[55] flex items-end sm:items-center justify-center opacity-0">
+        <div id="flow-modal-content"
+            class="bg-white w-full max-w-lg h-[90vh] sm:h-auto sm:rounded-3xl rounded-t-3xl overflow-y-auto transform translate-y-full sm:translate-y-0 relative custom-scrollbar">
+
+            <!-- Handle bar (móvil) -->
+            <div class="sm:hidden sticky top-0 bg-white pt-3 pb-2 flex justify-center z-10">
+                <div class="w-12 h-1.5 bg-slate-200 rounded-full"></div>
+            </div>
+
+            <button onclick="closeFlowModal()"
+                class="absolute top-4 right-4 text-slate-400 hover:text-red-500 bg-slate-100 hover:bg-slate-200 p-2 rounded-full w-9 h-9 flex items-center justify-center z-20 transition-colors">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <!-- Hero del detalle -->
+            <div id="detail-hero" class="hero-gradient text-white px-6 pt-6 pb-8 sm:rounded-t-3xl">
+                <p class="text-[10px] uppercase tracking-widest text-indigo-200 font-bold mb-1">Detalle de Operación</p>
+                <h3 id="detail-folio" class="text-2xl font-black tracking-tight">—</h3>
+                <div class="flex items-end justify-between mt-3">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-indigo-200">Importe</p>
+                        <p id="detail-importe" class="text-3xl font-black">$0.00</p>
+                    </div>
+                    <span id="detail-status-chip" class="chip bg-white/15 text-white">—</span>
+                </div>
+            </div>
+
+            <div class="p-6 space-y-6" id="detail-body">
+                <!-- Timeline -->
+                <section>
+                    <div class="section-title"><i class="fas fa-route mr-2 text-indigo-500"></i> Progreso</div>
+                    <div id="timeline-container" class="pl-1"></div>
+                </section>
+
+                <!-- Datos -->
+                <section>
+                    <div class="section-title"><i class="fas fa-database mr-2 text-indigo-500"></i> Datos de la operación</div>
+                    <div id="datos-container" class="bg-slate-50 rounded-2xl p-4"></div>
+                </section>
+
+                <!-- Desglose Contable -->
+                <section id="contable-section">
+                    <div class="section-title"><i class="fas fa-book mr-2 text-indigo-500"></i> Desglose Contable</div>
+                    <div id="contable-container" class="bg-slate-50 rounded-2xl p-4 overflow-x-auto"></div>
+                </section>
+
+                <!-- Desglose Bancario -->
+                <section id="bancario-section">
+                    <div class="section-title"><i class="fas fa-university mr-2 text-indigo-500"></i> Desglose Bancario</div>
+                    <div id="bancario-container" class="bg-slate-50 rounded-2xl p-4 overflow-x-auto"></div>
+                </section>
+
+                <!-- Comprobantes -->
+                <section id="comprobantes-section">
+                    <div class="section-title"><i class="fas fa-paperclip mr-2 text-indigo-500"></i> Comprobantes</div>
+                    <div id="comprobantes-container" class="space-y-2"></div>
+                </section>
+
+                <!-- Action area -->
+                <div id="detail-actions" class="pt-2 pb-4 sticky bottom-0 bg-gradient-to-t from-white via-white to-transparent"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== TOAST ===================== -->
+    <div id="toast"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center bg-slate-900 text-white px-5 py-3 rounded-full shadow-2xl opacity-0 translate-y-10 transition-all duration-300 z-[70]">
+        <i id="toast-icon" class="fas fa-check-circle mr-3 text-green-400"></i>
+        <span id="toast-message" class="text-sm font-semibold">Notificación</span>
+    </div>
+
+    <script>
+        // ============================================================
+        // CONFIGURACIÓN — Pizarra GI Móvil
+        // ============================================================
+        const APP_VERSION = '2026.04.16.1';
+        const AUTHORIZATION_PIN = '123456'; // v1: consistente con gastos_internos.html:7176
+
+        // Colecciones GI (diferentes de movil.html / index.html)
+        const COL_SOLS = 'solicitudes_gastos';
+        const COL_USERS = 'gi_usuarios';
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        let toastTimeout;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            const msg = document.getElementById('toast-message');
+            msg.textContent = message;
+            const iconMap = {
+                success: 'fas fa-check-circle mr-3 text-emerald-400',
+                info:    'fas fa-info-circle mr-3 text-blue-400',
+                error:   'fas fa-times-circle mr-3 text-red-400'
+            };
+            icon.className = iconMap[type] || iconMap.success;
+            toast.classList.remove('opacity-0', 'translate-y-10');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-10');
+            }, 3000);
+        }
+
+        // ============================================================
+        // FIREBASE
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyD0j20ZXdcfVioRAfkJn6Uyn_Q2A6blYkI",
+            authDomain: "pizarraflc.appspot.com",
+            projectId: "pizarraflc",
+            storageBucket: "pizarraflc.firebasestorage.app",
+            messagingSenderId: "108471728011",
+            appId: "1:108471728011:web:c0a83b710b37d72c21e18e"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+
+        firebase.firestore().enablePersistence().catch(err => {
+            if (err.code === 'failed-precondition') console.warn("Persistencia falló: múltiples pestañas.");
+            else if (err.code === 'unimplemented') console.warn("Persistencia no soportada.");
+        });
+
+        const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // Service worker (reusa el de movil.html si existe)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(() => {});
+        }
+
+        // ============================================================
+        // ESTADO
+        // ============================================================
+        let currentUserRole = null;
+        let currentUserName = 'Usuario GI';
+        let currentUserEmail = null;
+        let allLoadedRequests = [];
+        let selectedRequestId = null;
+        let isPageLoad = true;
+        let activeListenerToken = 0;
+
+        let currentTab = 'HOY';
+        let adminViewMode = 'PENDIENTES';
+        const BUSINESS_TIME_ZONE = 'America/Mexico_City';
+
+        // Roles con poder de aprobación
+        const APPROVER_ROLES = ['administrativo', 'admin'];
+        const isApprover = () => APPROVER_ROLES.includes((currentUserRole || '').toLowerCase());
+
+        // ============================================================
+        // HELPERS DE FECHA
+        // ============================================================
+        function getMexicoDate(offsetDays = 0) {
+            const d = new Date();
+            d.setDate(d.getDate() + offsetDays);
+            return d.toLocaleDateString('en-CA', { timeZone: BUSINESS_TIME_ZONE });
+        }
+        function normalizeBusinessDate(value) {
+            if (!value) return '';
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+            let d = null;
+            if (typeof value === 'object' && typeof value.seconds === 'number') d = new Date(value.seconds * 1000);
+            else d = new Date(value);
+            if (Number.isNaN(d.getTime())) return '';
+            return d.toLocaleDateString('en-CA', { timeZone: BUSINESS_TIME_ZONE });
+        }
+        function formatDate(d) {
+            if (!d) return '';
+            const [y, m, da] = d.split('-');
+            return `${da}/${m}`;
+        }
+        function formatMoney(a) {
+            return (Number(a) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        function formatFullDate(isoOrTs) {
+            if (!isoOrTs) return '--';
+            try {
+                const d = typeof isoOrTs === 'object' && typeof isoOrTs.seconds === 'number'
+                    ? new Date(isoOrTs.seconds * 1000)
+                    : new Date(isoOrTs);
+                if (Number.isNaN(d.getTime())) return '--';
+                return d.toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+            } catch { return '--'; }
+        }
+
+        // ============================================================
+        // RED
+        // ============================================================
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+        function updateNetworkStatus() {
+            const status = document.getElementById('connection-status');
+            if (!status) return;
+            if (navigator.onLine) {
+                status.classList.remove('bg-red-500');
+                status.classList.add('bg-emerald-400');
+            } else {
+                status.classList.remove('bg-emerald-400');
+                status.classList.add('bg-red-500');
+                showToast('Sin conexión — los cambios se guardan localmente', 'info');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateNetworkStatus();
+            const v = document.getElementById('app-version');
+            if (v) v.textContent = `v${APP_VERSION}`;
+            buildKeypad();
+        });
+
+        // ============================================================
+        // SESIÓN
+        // ============================================================
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUserEmail = user.email;
+                db.collection(COL_USERS).where('email', '==', user.email).get()
+                    .then(snap => {
+                        if (!snap.empty) {
+                            const u = snap.docs[0].data();
+                            currentUserRole = (u.role || '').toLowerCase();
+                            currentUserName = u.name || u.nombre || u.email || 'Usuario GI';
+                        } else {
+                            // Fallback: intentar en 'usuarios' (algunos admins viven ahí)
+                            return db.collection('usuarios').where('email', '==', user.email).get().then(s2 => {
+                                if (!s2.empty) {
+                                    const u = s2.docs[0].data();
+                                    currentUserRole = (u.role || '').toLowerCase();
+                                    currentUserName = u.name || u.email || 'Usuario GI';
+                                } else {
+                                    currentUserRole = 'operaciones';
+                                }
+                            });
+                        }
+                    })
+                    .then(() => unlockApp())
+                    .catch(err => {
+                        console.error("Error obteniendo rol:", err);
+                        currentUserRole = 'operaciones';
+                        unlockApp();
+                    });
+            } else {
+                currentUserRole = null;
+                lockApp();
+            }
+        });
+
+        function unlockApp() {
+            const overlay = document.getElementById('login-overlay');
+            if (overlay) { overlay.classList.add('hidden'); overlay.style.display = 'none'; }
+
+            document.getElementById('user-greeting').textContent = `Hola, ${currentUserName}`;
+            const badge = document.getElementById('role-badge');
+            badge.innerHTML = `<i class="fas fa-user-shield mr-1.5"></i> ${roleLabel(currentUserRole)}`;
+
+            const notifBtn = document.getElementById('btn-enable-notif');
+            if (notifBtn && isApprover()) notifBtn.classList.remove('hidden');
+
+            updateAdminViewToggle();
+            updateFilterTabsVisibility();
+            initDataListener();
+        }
+
+        function lockApp() {
+            const overlay = document.getElementById('login-overlay');
+            if (overlay) { overlay.classList.remove('hidden'); overlay.style.display = 'flex'; }
+        }
+
+        function roleLabel(r) {
+            const map = {
+                'admin': 'Admin',
+                'administrativo': 'Administrativo',
+                'operaciones': 'Operaciones',
+                'tesoreria': 'Tesorería',
+                'efectivos': 'Efectivos',
+                'financiero': 'Financiero'
+            };
+            return map[r] || (r || 'Sin rol');
+        }
+
+        function handleLogin() {
+            const btn = document.getElementById('btn-login');
+            const err = document.getElementById('login-error');
+            const userVal = document.getElementById('login-user').value.trim();
+            const passVal = document.getElementById('login-pass').value.trim();
+
+            if (!userVal || !passVal) { showToast("Ingresa usuario y contraseña", "error"); return; }
+
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Verificando...';
+            btn.disabled = true;
+            if (err) err.classList.add('hidden');
+
+            const email = userVal.includes('@') ? userVal : `${userVal}@pizarraflc.com`;
+
+            auth.signInWithEmailAndPassword(email, passVal)
+                .then(() => { /* onAuthStateChanged se encarga */ })
+                .catch(error => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    let msg = "Error de acceso.";
+                    if (error.code === 'auth/wrong-password') msg = "Contraseña incorrecta.";
+                    else if (error.code === 'auth/user-not-found') msg = "Usuario no encontrado.";
+                    else if (error.code === 'auth/network-request-failed') msg = "Sin conexión a internet.";
+                    else if (error.code === 'auth/invalid-credential') msg = "Credenciales inválidas.";
+                    if (err) { err.textContent = msg; err.classList.remove('hidden'); }
+                    else showToast(msg, "error");
+                });
+        }
+
+        function handleLogout() {
+            if (!confirm("¿Cerrar sesión?")) return;
+            auth.signOut().then(() => setTimeout(() => location.reload(), 300));
+        }
+
+        // ============================================================
+        // FILTROS Y UI POR ROL
+        // ============================================================
+        function isAdminCompletedMode() {
+            return isApprover() && adminViewMode === 'COMPLETADOS';
+        }
+        function getThirdFilterValue() {
+            return isAdminCompletedMode() ? 'SEMANA' : 'TODOS';
+        }
+
+        function updateAdminViewToggle() {
+            const wrapper = document.getElementById('admin-view-toggle');
+            const btnP = document.getElementById('admin-view-pendientes');
+            const btnC = document.getElementById('admin-view-completados');
+            if (!wrapper) return;
+
+            if (isApprover()) wrapper.classList.remove('hidden');
+            else wrapper.classList.add('hidden');
+
+            const isPend = adminViewMode === 'PENDIENTES';
+            btnP.className = `tab-pill rounded-xl py-2.5 text-xs font-bold ${isPend ? 'bg-slate-800 text-white' : 'text-slate-500'}`;
+            btnC.className = `tab-pill rounded-xl py-2.5 text-xs font-bold ${!isPend ? 'bg-emerald-600 text-white' : 'text-slate-500'}`;
+        }
+
+        function updateFilterTabsVisibility() {
+            const tabs = document.getElementById('filter-tabs');
+            if (!tabs) return;
+            // Mostrar tabs cuando el volumen lo amerita (admin completados, tesoreria, efectivos)
+            const showTabs = isAdminCompletedMode() || ['tesoreria', 'efectivos'].includes(currentUserRole);
+            tabs.classList.toggle('hidden', !showTabs);
+        }
+
+        function setAdminViewMode(mode) {
+            if (!isApprover() || adminViewMode === mode) return;
+            adminViewMode = mode;
+            currentTab = 'HOY';
+            updateAdminViewToggle();
+            updateFilterTabsVisibility();
+            restartDataListener();
+        }
+
+        function setFilter(tab) {
+            currentTab = tab;
+            syncFilterTabState();
+            renderList();
+        }
+
+        function syncFilterTabState() {
+            ['hoy', 'ayer', 'todos'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                if (!btn) return;
+                if (t === currentTab.toLowerCase()) {
+                    btn.className = 'tab-pill rounded-xl py-2 text-xs font-bold bg-slate-800 text-white';
+                } else {
+                    btn.className = 'tab-pill rounded-xl py-2 text-xs font-bold text-slate-500';
+                }
+            });
+        }
+
+        // ============================================================
+        // STATUSES POR ROL
+        // ============================================================
+        function getStatusFilterForRole() {
+            if (isAdminCompletedMode()) return ['completado'];
+            if (isApprover()) return ['orden', 'pre-autorizado'];
+            if (currentUserRole === 'operaciones') return ['pre-orden', 'orden'];
+            if (['tesoreria', 'efectivos'].includes(currentUserRole)) return ['autorizado', 'completado'];
+            return []; // Rol no reconocido → vacío
+        }
+
+        // ============================================================
+        // LISTENER FIRESTORE
+        // ============================================================
+        function restartDataListener() {
+            isPageLoad = true;
+            allLoadedRequests = [];
+            renderListSkeleton();
+            initDataListener(true);
+        }
+
+        function renderListSkeleton() {
+            const container = document.getElementById('requests-container');
+            if (!container) return;
+            container.innerHTML = `
+                <div class="card-gi p-5"><div class="skeleton h-4 w-24 mb-2"></div><div class="skeleton h-6 w-3/4 mb-2"></div><div class="skeleton h-4 w-1/2"></div></div>
+                <div class="card-gi p-5"><div class="skeleton h-4 w-24 mb-2"></div><div class="skeleton h-6 w-2/3 mb-2"></div><div class="skeleton h-4 w-1/2"></div></div>
+            `;
+        }
+
+        function initDataListener(force = false) {
+            if (window.unsubscribeSolicitudes) {
+                if (!force) return;
+                try { window.unsubscribeSolicitudes(); } catch {}
+                window.unsubscribeSolicitudes = null;
+            }
+
+            const statuses = getStatusFilterForRole();
+            if (statuses.length === 0) {
+                renderEmptyState(`Sin solicitudes asignadas a tu rol (${roleLabel(currentUserRole)}).`, 'fa-user-slash');
+                return;
+            }
+
+            const listenerToken = ++activeListenerToken;
+            const query = db.collection(COL_SOLS).where('status', 'in', statuses);
+
+            window.unsubscribeSolicitudes = query.onSnapshot(snapshot => {
+                if (listenerToken !== activeListenerToken) return;
+
+                // Notificaciones
+                snapshot.docChanges().forEach(change => {
+                    if (change.type === "added" && !isPageLoad && isApprover() && !isAdminCompletedMode()) {
+                        const data = change.doc.data();
+                        const monto = formatMoney(calculateTotal(data));
+                        if (data.status === 'orden') sendSystemNotification("NUEVA ORDEN GI", `${data.cliente || 'Sin Cliente'}\n$${monto}`);
+                        else if (data.status === 'pre-autorizado') sendSystemNotification("PRE-AUTORIZADO GI", `${data.cliente || 'Sin Cliente'}\nListo para firma.`);
+                    }
+                });
+
+                allLoadedRequests = [];
+                snapshot.forEach(doc => allLoadedRequests.push({ id: doc.id, ...doc.data() }));
+                renderList();
+                isPageLoad = false;
+            }, error => {
+                if (listenerToken !== activeListenerToken) return;
+                console.error("Error Firestore:", error);
+                if (error.code === 'permission-denied') {
+                    showToast("Tu sesión expiró o sin permisos.", "error");
+                    setTimeout(() => location.reload(), 2500);
+                } else {
+                    renderEmptyState("Error al cargar. Revisa tu conexión.", 'fa-exclamation-triangle');
+                }
+            });
+        }
+
+        function renderEmptyState(message, icon = 'fa-calendar-day') {
+            const container = document.getElementById('requests-container');
+            if (!container) return;
+            container.innerHTML = `
+                <div class="text-center py-16 px-4">
+                    <div class="w-20 h-20 mx-auto bg-white rounded-full shadow-sm flex items-center justify-center mb-4">
+                        <i class="fas ${icon} text-3xl text-slate-300"></i>
+                    </div>
+                    <p class="text-slate-500 text-sm">${message}</p>
+                </div>
+            `;
+        }
+
+        // ============================================================
+        // RENDER LISTA
+        // ============================================================
+        function renderList() {
+            const container = document.getElementById('requests-container');
+            if (!container) return;
+
+            // Filtro de fecha (solo cuando tabs están visibles)
+            let list = [...allLoadedRequests];
+            const tabsVisible = !document.getElementById('filter-tabs').classList.contains('hidden');
+
+            if (tabsVisible) {
+                const hoyMx = getMexicoDate(0);
+                const ayerMx = getMexicoDate(-1);
+                const weekLimit = getMexicoDate(-6);
+                const getRefDate = (r) => r.status === 'completado'
+                    ? (normalizeBusinessDate(r.completadoTimestamp) || normalizeBusinessDate(r.fecha))
+                    : normalizeBusinessDate(r.fecha);
+
+                if (currentTab === 'HOY')        list = list.filter(r => getRefDate(r) === hoyMx);
+                else if (currentTab === 'AYER') list = list.filter(r => getRefDate(r) === ayerMx);
+                else if (currentTab === 'SEMANA') list = list.filter(r => {
+                    const d = getRefDate(r); return d >= weekLimit && d <= hoyMx;
+                });
+            }
+
+            // Ordenar: más urgentes primero (pre-autorizado > orden > resto), luego por fecha desc
+            const weight = { 'pre-autorizado': 5, 'orden': 4, 'pre-orden': 3, 'autorizado': 2, 'completado': 1, 'conciliado': 0 };
+            list.sort((a, b) => {
+                const wa = weight[a.status] ?? 0;
+                const wb = weight[b.status] ?? 0;
+                if (wa !== wb) return wb - wa;
+                const ta = new Date(a.fecha || 0).getTime();
+                const tb = new Date(b.fecha || 0).getTime();
+                return tb - ta;
+            });
+
+            // Counter badge
+            document.getElementById('counter-badge').textContent =
+                `${list.length} ${isAdminCompletedMode() ? 'completados' : (isApprover() ? 'pendientes' : 'en lista')}`;
+
+            if (list.length === 0) {
+                renderEmptyState('No hay solicitudes para mostrar.', 'fa-inbox');
+                return;
+            }
+
+            container.innerHTML = '';
+            list.forEach(req => renderCard(req));
+        }
+
+        function statusMeta(status) {
+            const map = {
+                'pre-orden':      { cls: 'c-preorden', label: 'Pre-Orden',        color: 'bg-amber-100 text-amber-700',   pulse: false },
+                'orden':          { cls: 'c-orden',    label: 'Orden',            color: 'bg-orange-100 text-orange-700', pulse: true  },
+                'pre-autorizado': { cls: 'c-preauth',  label: 'Pre-Autorizado',   color: 'bg-purple-100 text-purple-700', pulse: true  },
+                'autorizado':     { cls: 'c-auth',     label: 'Autorizado',       color: 'bg-blue-100 text-blue-700',     pulse: false },
+                'completado':     { cls: 'c-done',     label: 'Completado',       color: 'bg-emerald-100 text-emerald-700', pulse: false },
+                'conciliado':     { cls: 'c-conc',     label: 'Conciliado',       color: 'bg-slate-100 text-slate-600',   pulse: false }
+            };
+            return map[status] || { cls: '', label: status || '—', color: 'bg-slate-100 text-slate-600', pulse: false };
+        }
+
+        function renderCard(req) {
+            const container = document.getElementById('requests-container');
+            if (!container) return;
+
+            const meta = statusMeta(req.status);
+            const total = calculateTotal(req);
+            const cliente = req.cliente || 'Sin Cuenta Mayor';
+            const solicitante = req.solicitante_apoyo || req.solicitante || '—';
+            const folio = req.folio || req.id;
+
+            // Acciones inline por rol y estado
+            let actionBtn = '';
+            if (isApprover() && !isAdminCompletedMode()) {
+                if (req.status === 'orden') {
+                    actionBtn = `<button onclick="event.stopPropagation();handleQuickAction('${req.id}','pre-auth')"
+                        class="btn-primary btn-approve text-xs px-3 py-2">
+                        <i class="fas fa-check mr-1"></i> Pre-Autorizar
+                    </button>`;
+                } else if (req.status === 'pre-autorizado') {
+                    actionBtn = `<button onclick="event.stopPropagation();handleQuickAction('${req.id}','auth')"
+                        class="btn-primary btn-auth text-xs px-3 py-2">
+                        <i class="fas fa-signature mr-1"></i> Autorizar
+                    </button>`;
+                }
+            }
+
+            const html = `
+            <div class="card-gi ${meta.cls} p-4 pl-5 new-item" onclick="openFlowModal('${req.id}')">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="chip ${meta.color}">
+                        <span class="status-dot ${meta.pulse ? 'pulse' : ''}" style="background: currentColor"></span>
+                        ${meta.label}
+                    </span>
+                    <span class="text-[11px] text-slate-400 font-medium">${formatDate(normalizeBusinessDate(req.fecha))}</span>
+                </div>
+                <div class="mb-1 flex items-center gap-2">
+                    <span class="text-[11px] font-mono text-slate-400">${folio}</span>
+                </div>
+                <h2 class="text-base font-bold text-slate-900 leading-tight mb-0.5 truncate">${cliente}</h2>
+                <p class="text-xs text-slate-500 mb-3 truncate">
+                    <i class="fas fa-user text-[10px] mr-1"></i> ${solicitante}
+                    ${req.operadora ? `<span class="mx-1.5 text-slate-300">·</span><i class="fas fa-building text-[10px] mr-1"></i> ${req.operadora}` : ''}
+                </p>
+
+                <div class="flex justify-between items-end pt-3 border-t border-slate-100">
+                    <div>
+                        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Importe</p>
+                        <p class="text-xl font-black text-slate-900">$${formatMoney(total)}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="event.stopPropagation();openFlowModal('${req.id}')"
+                            class="bg-indigo-50 text-indigo-600 w-10 h-10 rounded-xl active:scale-95 transition-transform flex items-center justify-center">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        ${actionBtn}
+                    </div>
+                </div>
+            </div>`;
+            container.insertAdjacentHTML('beforeend', html);
+        }
+
+        // ============================================================
+        // TOTAL DEL IMPORTE
+        // ============================================================
+        function calculateTotal(req) {
+            // Prioridad 1: campo importe directo (solicitudes_gastos lo trae)
+            if (req.importe !== undefined && req.importe !== null && !isNaN(parseFloat(req.importe))) {
+                return parseFloat(req.importe);
+            }
+            // Prioridad 2: contableSnapshot.importeTotal
+            if (req.contableSnapshot && !isNaN(parseFloat(req.contableSnapshot.importeTotal))) {
+                return parseFloat(req.contableSnapshot.importeTotal);
+            }
+            // Prioridad 3: suma de conceptos
+            const conceptos = req.conceptosGuardados || req.conceptos || [];
+            return conceptos.reduce((s, i) => s + (parseFloat(i.CANTIDAD) || parseFloat(i.importe) || 0), 0);
+        }
+
+        // ============================================================
+        // ACCIONES (Pre-Autorizar / Autorizar)
+        // ============================================================
+        function handleQuickAction(id, type) {
+            selectedRequestId = id;
+            const req = allLoadedRequests.find(r => r.id === id);
+            if (!req) return showToast("Solicitud no encontrada", "error");
+
+            if (type === 'pre-auth') {
+                // Validación contable mínima previa
+                const v = validateContableMinimo(req);
+                if (!v.ok) { showToast(v.msg, "error"); return; }
+                if (!confirm(`¿Pre-Autorizar solicitud ${req.folio || id}?`)) return;
+                updateStatus(id, 'pre-autorizado');
+            } else if (type === 'auth') {
+                openPinModal();
+            }
+        }
+
+        function validateContableMinimo(req) {
+            const desglose = Array.isArray(req.desgloseContable) ? req.desgloseContable : [];
+            if (desglose.length === 0) {
+                return { ok: false, msg: "Sin desglose contable. Completa desde el escritorio." };
+            }
+            let suma = 0;
+            for (const row of desglose) {
+                const imp = parseFloat(row.importe) || 0;
+                if (imp <= 0) return { ok: false, msg: "Un renglón contable tiene importe en 0" };
+                if (!(row.agrupacionId || row.agrupacionNombre)) return { ok: false, msg: "Falta Sub Cuenta en desglose" };
+                if (!row.departamento) return { ok: false, msg: "Falta Departamento en desglose" };
+                suma += imp;
+            }
+            const total = calculateTotal(req);
+            if (Math.abs(suma - total) > 0.01) {
+                return { ok: false, msg: `Desglose ($${formatMoney(suma)}) ≠ total ($${formatMoney(total)})` };
+            }
+            return { ok: true };
+        }
+
+        function updateStatus(id, newStatus) {
+            const now = new Date().toISOString();
+            const updateData = { status: newStatus };
+            if (newStatus === 'pre-autorizado') updateData.preautorizadoTimestamp = now;
+            if (newStatus === 'autorizado')     updateData.autorizadoTimestamp = now;
+
+            db.collection(COL_SOLS).doc(id).update(updateData)
+                .then(() => {
+                    showToast(newStatus === 'pre-autorizado' ? "Pre-autorizado ✓" : "Autorizado ✓", "success");
+                    // Si el modal está abierto, refrescar acciones
+                    if (!document.getElementById('flow-modal').classList.contains('hidden')) {
+                        closeFlowModal();
+                    }
+                })
+                .catch(e => showToast("Error: " + e.message, "error"));
+        }
+
+        // ============================================================
+        // PIN MODAL
+        // ============================================================
+        function buildKeypad() {
+            const pad = document.getElementById('pin-keypad');
+            if (!pad) return;
+            const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+            pad.innerHTML = keys.map(k => {
+                if (k === '') return `<div></div>`;
+                if (k === '⌫') {
+                    return `<button onclick="pinKey('back')" class="bg-slate-100 text-slate-700 rounded-xl py-3 font-bold text-lg active:scale-95 transition-transform"><i class="fas fa-delete-left"></i></button>`;
+                }
+                return `<button onclick="pinKey('${k}')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl py-3 font-bold text-lg active:scale-95 transition-transform">${k}</button>`;
+            }).join('');
+        }
+
+        function pinKey(k) {
+            const input = document.getElementById('pin-input');
+            if (!input) return;
+            if (k === 'back') input.value = input.value.slice(0, -1);
+            else if (input.value.length < 6) input.value += k;
+            updatePinDots(input.value);
+        }
+
+        function updatePinDots(val) {
+            const dots = document.querySelectorAll('#pin-dots .pin-dot');
+            dots.forEach((d, i) => d.classList.toggle('filled', i < val.length));
+        }
+
+        function openPinModal() {
+            const modal = document.getElementById('pin-modal');
+            modal.classList.remove('hidden');
+            const input = document.getElementById('pin-input');
+            input.value = '';
+            updatePinDots('');
+            setTimeout(() => input.focus(), 50);
+        }
+
+        function closePinModal() {
+            document.getElementById('pin-modal').classList.add('hidden');
+        }
+
+        function confirmAuthorize() {
+            const input = document.getElementById('pin-input');
+            if (input && input.value === AUTHORIZATION_PIN) {
+                updateStatus(selectedRequestId, 'autorizado');
+                closePinModal();
+            } else {
+                showToast("PIN incorrecto", "error");
+                input.value = '';
+                updatePinDots('');
+            }
+        }
+
+        // ============================================================
+        // MODAL DE DETALLE
+        // ============================================================
+        function openFlowModal(reqId) {
+            const modal = document.getElementById('flow-modal');
+            const content = document.getElementById('flow-modal-content');
+            const req = allLoadedRequests.find(r => r.id === reqId);
+            if (!req) return showToast("Solicitud no encontrada en memoria", "error");
+
+            selectedRequestId = reqId;
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modal.classList.add('opacity-100');
+                content.classList.remove('translate-y-full');
+            }, 10);
+
+            renderDetailHero(req);
+            renderTimeline(req);
+            renderDatos(req);
+            renderDesgloseContable(req);
+            renderDesgloseBancario(req);
+            renderComprobantes(req);
+            renderDetailActions(req);
+        }
+
+        function closeFlowModal() {
+            const modal = document.getElementById('flow-modal');
+            const content = document.getElementById('flow-modal-content');
+            content.classList.add('translate-y-full');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.add('opacity-0');
+            }, 300);
+        }
+
+        function renderDetailHero(req) {
+            const meta = statusMeta(req.status);
+            document.getElementById('detail-folio').textContent = req.folio || req.id || '—';
+            document.getElementById('detail-importe').textContent = `$${formatMoney(calculateTotal(req))}`;
+            const chip = document.getElementById('detail-status-chip');
+            chip.innerHTML = `<span class="status-dot ${meta.pulse ? 'pulse' : ''}" style="background: currentColor"></span> ${meta.label}`;
+            chip.className = `chip bg-white/20 text-white border border-white/20`;
+        }
+
+        function renderTimeline(req) {
+            const container = document.getElementById('timeline-container');
+            const steps = [
+                { label: 'Pre-Orden',       time: req.preordenTimestamp || req.fecha,  icon: 'fa-file-medical', key: 'pre-orden' },
+                { label: 'Orden',           time: req.ordenTimestamp,                   icon: 'fa-file-signature', key: 'orden' },
+                { label: 'Pre-Autorizado',  time: req.preautorizadoTimestamp,           icon: 'fa-check-circle', key: 'pre-autorizado' },
+                { label: 'Autorizado',      time: req.autorizadoTimestamp,              icon: 'fa-signature', key: 'autorizado' },
+                { label: 'Completado',      time: req.completadoTimestamp,              icon: 'fa-paper-plane', key: 'completado' },
+                { label: 'Conciliado',      time: req.conciliadoTimestamp,              icon: 'fa-handshake', key: 'conciliado' }
+            ];
+            const order = ['pre-orden','orden','pre-autorizado','autorizado','completado','conciliado'];
+            const currentIdx = order.indexOf(req.status);
+
+            let html = '';
+            steps.forEach((step, idx) => {
+                const isActive = idx <= currentIdx;
+                const isLast = idx === steps.length - 1;
+                const circle = isActive
+                    ? 'bg-indigo-600 text-white border-indigo-600'
+                    : 'bg-white text-slate-300 border-slate-200';
+                const textCls = isActive ? 'text-slate-900' : 'text-slate-400';
+                const lineCls = idx < currentIdx ? 'bg-indigo-400' : 'bg-slate-200';
+
+                html += `
+                <div class="relative flex items-start ${isLast ? '' : 'pb-5'}">
+                    <div class="flex-shrink-0 relative z-10 w-8 h-8 rounded-full flex items-center justify-center border-2 ${circle}">
+                        <i class="fas ${step.icon} text-[10px]"></i>
+                    </div>
+                    ${!isLast ? `<div class="absolute left-[15px] top-8 w-0.5 ${lineCls}" style="height: calc(100% - 20px)"></div>` : ''}
+                    <div class="ml-4 flex-1 pt-0.5">
+                        <p class="text-sm font-bold ${textCls}">${step.label}</p>
+                        <p class="text-[11px] text-slate-400">${formatFullDate(step.time)}</p>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderDatos(req) {
+            const c = document.getElementById('datos-container');
+            const pairs = [
+                ['ID',             req.id || '—'],
+                ['Fecha',          normalizeBusinessDate(req.fecha) || '—'],
+                ['Solicitante',    req.solicitante_apoyo || req.solicitante || '—'],
+                ['Cuenta Mayor',   req.cliente || '—'],
+                ['Sub Cuenta',     req.subcuenta_snapshot || req.subcuenta || '—'],
+                ['Asignación',     req.costo_gasto_snapshot || req.costoGasto || '—'],
+                ['Tipo Op.',       req.tipo_operacion || req.emite || '—'],
+                ['Operadora',      req.operadora || '—'],
+                ['Moneda',         req.moneda || 'MXN'],
+                ['Método de Pago', req.metodo_pago || '—'],
+                ['Concepto',       req.concepto_adicional || '—']
+            ];
+            c.innerHTML = pairs.map(([k, v]) => `
+                <div class="kv-row">
+                    <span class="k">${k}</span>
+                    <span class="v">${v}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderDesgloseContable(req) {
+            const c = document.getElementById('contable-container');
+            const rows = Array.isArray(req.desgloseContable) ? req.desgloseContable : [];
+            if (rows.length === 0) {
+                c.innerHTML = `<p class="text-center text-slate-400 text-xs py-4"><i class="fas fa-info-circle mr-1"></i> Sin desglose contable</p>`;
+                return;
+            }
+            let total = 0;
+            const trs = rows.map(r => {
+                const imp = parseFloat(r.importe) || 0; total += imp;
+                const agrup = r.agrupacionNombre || r.agrupacionId || '—';
+                const partida = r.partidaNombre || r.partidaId || '—';
+                const depto = r.departamento || '—';
+                return `
+                    <tr>
+                        <td><p class="font-semibold">${agrup}</p><p class="text-[10px] text-slate-400">${partida}</p></td>
+                        <td><span class="chip bg-indigo-50 text-indigo-700">${depto}</span></td>
+                        <td class="text-right font-bold">$${formatMoney(imp)}</td>
+                    </tr>
+                `;
+            }).join('');
+            c.innerHTML = `
+                <table class="tbl-gi">
+                    <thead><tr><th>Agrupación / Partida</th><th>Depto.</th><th class="text-right">Importe</th></tr></thead>
+                    <tbody>${trs}
+                        <tr class="total-row"><td colspan="2" class="text-right">Total</td><td class="text-right">$${formatMoney(total)}</td></tr>
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderDesgloseBancario(req) {
+            const c = document.getElementById('bancario-container');
+            // Fuentes posibles: paymentBreakdown (nombre principal), dispersion, tempPaymentBreakdown, pagosBancarios
+            const rows = Array.isArray(req.paymentBreakdown) ? req.paymentBreakdown
+                       : Array.isArray(req.dispersion) ? req.dispersion
+                       : Array.isArray(req.pagosBancarios) ? req.pagosBancarios
+                       : Array.isArray(req.tempPaymentBreakdown) ? req.tempPaymentBreakdown
+                       : [];
+            if (rows.length === 0) {
+                c.innerHTML = `<p class="text-center text-slate-400 text-xs py-4"><i class="fas fa-info-circle mr-1"></i> Sin dispersión bancaria registrada</p>`;
+                return;
+            }
+            let total = 0;
+            const trs = rows.map(r => {
+                const monto = parseFloat(r.monto || r.importe || r.amount) || 0; total += monto;
+                const banco = r.banco || r.source || r.fuente || '—';
+                const operadora = Array.isArray(r.operadoras) ? r.operadoras.join(', ')
+                                : (r.operadora || r.operator || '—');
+                return `
+                    <tr>
+                        <td class="font-semibold">${banco}</td>
+                        <td class="text-slate-600">${operadora}</td>
+                        <td class="text-right font-bold">$${formatMoney(monto)}</td>
+                    </tr>
+                `;
+            }).join('');
+            c.innerHTML = `
+                <table class="tbl-gi">
+                    <thead><tr><th>Banco</th><th>Operadora</th><th class="text-right">Monto</th></tr></thead>
+                    <tbody>${trs}
+                        <tr class="total-row"><td colspan="2" class="text-right">Total</td><td class="text-right">$${formatMoney(total)}</td></tr>
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function renderComprobantes(req) {
+            const c = document.getElementById('comprobantes-container');
+            const treasury = Array.isArray(req.comprobanteTesoreriaURLs) ? req.comprobanteTesoreriaURLs
+                           : (req.comprobanteTesoreriaURL ? [req.comprobanteTesoreriaURL] : []);
+            const general = Array.isArray(req.comprobanteURLs) ? req.comprobanteURLs
+                          : (req.comprobanteUrl ? [req.comprobanteUrl] : []);
+            const concili = req.comprobanteConciliacionURL ? [req.comprobanteConciliacionURL] : [];
+            const urls = [...new Set([...treasury, ...general, ...concili])];
+
+            if (urls.length === 0) {
+                c.innerHTML = `<p class="text-center text-slate-400 text-xs py-4"><i class="fas fa-info-circle mr-1"></i> Sin comprobantes adjuntos</p>`;
+                return;
+            }
+
+            c.innerHTML = urls.map((url, i) => {
+                const isPdf = url.toLowerCase().includes('.pdf');
+                const icon = isPdf ? 'fa-file-pdf text-red-500' : 'fa-image text-indigo-500';
+                const label = treasury.includes(url) ? 'Tesorería'
+                            : concili.includes(url) ? 'Conciliación'
+                            : 'Comprobante';
+                return `
+                    <a href="${url}" target="_blank" rel="noopener"
+                       class="flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 rounded-xl active:scale-[.98] transition-transform">
+                        <span class="text-sm font-semibold text-slate-700 flex items-center">
+                            <i class="fas ${icon} mr-3 text-lg"></i>
+                            ${label} ${i + 1}
+                        </span>
+                        <i class="fas fa-arrow-up-right-from-square text-slate-400 text-xs"></i>
+                    </a>
+                `;
+            }).join('');
+        }
+
+        function renderDetailActions(req) {
+            const c = document.getElementById('detail-actions');
+            if (!isApprover() || isAdminCompletedMode()) {
+                c.innerHTML = '';
+                return;
+            }
+            if (req.status === 'orden') {
+                const v = validateContableMinimo(req);
+                if (!v.ok) {
+                    c.innerHTML = `
+                        <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs text-center">
+                            <i class="fas fa-exclamation-triangle mr-1"></i> ${v.msg}
+                        </div>`;
+                    return;
+                }
+                c.innerHTML = `
+                    <button onclick="handleQuickAction('${req.id}','pre-auth')" class="btn-primary btn-approve w-full">
+                        <i class="fas fa-check mr-2"></i> Pre-Autorizar Solicitud
+                    </button>`;
+            } else if (req.status === 'pre-autorizado') {
+                c.innerHTML = `
+                    <button onclick="handleQuickAction('${req.id}','auth')" class="btn-primary btn-auth w-full">
+                        <i class="fas fa-signature mr-2"></i> Autorizar con PIN
+                    </button>`;
+            } else {
+                c.innerHTML = `
+                    <div class="bg-slate-50 text-slate-500 rounded-xl p-3 text-xs text-center">
+                        <i class="fas fa-lock mr-1"></i> Solo lectura en este estado
+                    </div>`;
+            }
+        }
+
+        // ============================================================
+        // NOTIFICACIONES
+        // ============================================================
+        function requestNotificationPermission() {
+            if (!("Notification" in window)) return showToast("No soportado.", "error");
+            Notification.requestPermission().then(p => {
+                if (p === "granted") {
+                    sendSystemNotification("Pizarra GI", "Notificaciones activas");
+                    document.getElementById('btn-enable-notif').style.display = 'none';
+                }
+            });
+        }
+
+        function sendSystemNotification(title, body) {
+            if (Notification.permission !== "granted") return;
+            const options = { body, icon: 'FLC original.png', vibrate: [200, 100, 200], tag: 'gi-alert' };
+            if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+                navigator.serviceWorker.ready.then(reg => reg.showNotification(title, options)).catch(() => {
+                    new Notification(title, options);
+                });
+            } else {
+                new Notification(title, options);
+            }
+        }
+    </script>
+</body>
+</html>

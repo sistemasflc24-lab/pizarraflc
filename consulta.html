@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta Histórica - Base AppSheet</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Scrollbar personalizado */
+        .custom-scrollbar::-webkit-scrollbar { width: 10px; height: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 6px; border: 2px solid #f1f5f9; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Asegurar que los filtros pegajosos funcionen bien */
+        thead tr.filter-row th { top: 48px; /* Altura aproximada de la primera fila de headers */ }
+        .sticky-header th { position: sticky; z-index: 20; }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans text-gray-800 font-sm">
+
+    <nav class="bg-slate-900 text-white p-4 shadow-md flex justify-between items-center shrink-0 z-30 relative">
+        <div class="flex items-center gap-4">
+            <div class="bg-green-600 p-2 rounded-lg shadow-sm">
+                <i class="fas fa-database text-white text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide leading-tight">Histórico Operativo</h1>
+                <p class="text-xs text-slate-400 font-medium">Consulta de registros anteriores (Fuente: Google Drive/AppSheet)</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <span id="lastUpdate" class="text-xs text-slate-400 hidden md:block"></span>
+             <a href="index.html" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-md text-sm font-medium transition-all border border-slate-600 hover:border-slate-500 shadow-sm flex items-center">
+                <i class="fas fa-times mr-2 text-slate-400"></i>Cerrar Consulta
+            </a>
+        </div>
+    </nav>
+
+    <main class="flex-grow p-4 md:p-6 overflow-hidden flex flex-col relative z-10">
+        
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-4 flex flex-col md:flex-row justify-between items-center gap-4 shrink-0">
+             <div class="flex items-center gap-3 w-full md:w-auto">
+                 <div id="statusIndicator" class="flex h-3 w-3 relative">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                  </div>
+                <span id="recordCounter" class="text-sm font-bold text-gray-700 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200 shadow-sm">Iniciando...</span>
+            </div>
+
+            <div class="flex gap-3 w-full md:w-auto justify-end">
+                <button id="btnDownload" class="bg-green-600 hover:bg-green-700 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-sm flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-md" disabled>
+                    <i class="fas fa-file-excel mr-2 text-lg"></i> Exportar Vista Actual
+                </button>
+                <button id="btnReload" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-lg font-medium transition-all shadow-sm flex items-center justify-center hover:shadow-md">
+                    <i class="fas fa-sync-alt mr-2 id="reloadIcon"></i> Actualizar Datos
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white border border-gray-300 rounded-xl shadow-md flex-grow overflow-hidden relative flex flex-col">
+             <div id="loadingOverlay" class="absolute inset-0 bg-white/90 z-50 flex flex-col items-center justify-center backdrop-blur-[1px]">
+                <i class="fas fa-circle-notch fa-spin text-5xl text-blue-600 mb-4"></i>
+                <h2 class="text-xl font-bold text-gray-800">Cargando Base de Datos...</h2>
+                <p class="text-gray-500 text-sm mt-2">Conectando con Google Sheets</p>
+            </div>
+
+            <div class="overflow-auto flex-grow custom-scrollbar md:rounded-xl">
+                <table class="min-w-full divide-y divide-gray-200 border-collapse text-sm">
+                    <thead class="bg-slate-800" id="tableHeadContainer">
+                        </thead>
+                    <tbody id="tableBody" class="bg-white divide-y divide-gray-100">
+                        </tbody>
+                </table>
+            </div>
+             <div class="bg-gray-50 border-t border-gray-200 px-4 py-2 text-xs text-gray-500 text-right shrink-0">
+                Sistema de Consulta Histórica v2.0 | Modo Solo Lectura
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- CONFIGURACIÓN ---
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ4MqaERvXx3WyA3Fdk-mLvg6HDQCX-nAALLU73dekl79vfGNc5tFC3MrP2sLsWMgW3-V5Z45Pj7rjL/pub?gid=0&single=true&output=csv';
+        
+        // Estado de la aplicación
+        let state = {
+            headers: [],
+            allDataRows: [],   // Todos los datos crudos
+            filteredRows: [],  // Datos que coinciden con los filtros actuales
+            activeFilters: {}  // Mapa de filtros: { indiceColumna: 'texto buscado' }
+        };
+
+        // Elementos del DOM
+        const dom = {
+            btnReload: document.getElementById('btnReload'),
+            btnDownload: document.getElementById('btnDownload'),
+            recordCounter: document.getElementById('recordCounter'),
+            theadContainer: document.getElementById('tableHeadContainer'),
+            tableBody: document.getElementById('tableBody'),
+            loadingOverlay: document.getElementById('loadingOverlay'),
+            statusIndicator: document.getElementById('statusIndicator'),
+            lastUpdateSpan: document.getElementById('lastUpdate')
+        };
+
+        // --- INICIALIZACIÓN ---
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchData(); // Cargar datos al iniciar
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            dom.btnReload.addEventListener('click', fetchData);
+            dom.btnDownload.addEventListener('click', downloadExcelCSV);
+        }
+
+        // --- NÚCLEO: OBTENCIÓN Y PROCESAMIENTO DE DATOS ---
+        async function fetchData() {
+            setLoading(true);
+            try {
+                const response = await fetch(CSV_URL + '&_t=' + Date.now()); // Timestamp anti-cache
+                if (!response.ok) throw new Error('Error de conexión con Google Sheets');
+                const textData = await response.text();
+                
+                const parsedRows = parseCSVRobust(textData);
+                
+                if (parsedRows.length < 2) {
+                    throw new Error('La hoja de cálculo está vacía o no tiene formato correcto.');
+                }
+
+                // 1. Separar cabeceras y datos
+                state.headers = parsedRows[0];
+                // Validamos que las filas tengan datos reales y no sean solo comas vacías
+                state.allDataRows = parsedRows.slice(1).filter(row => row.length > 0 && row.some(cell => cell.trim() !== ''));
+                
+                // 2. Resetear filtros y mostrar todo inicialmnete
+                state.activeFilters = {};
+                state.filteredRows = [...state.allDataRows];
+
+                // 3. Renderizar interfaz
+                renderTableHeaderAndFilters();
+                renderTableBody();
+                
+                // 4. Actualizar estado UI
+                updateCounter();
+                dom.btnDownload.disabled = false;
+                const now = new Date();
+                dom.lastUpdateSpan.textContent = `Act: ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                showToast(`Se cargaron ${state.allDataRows.length} registros históricos.`, 'success');
+
+            } catch (error) {
+                console.error(error);
+                showErrorUI(error.message);
+                showToast('Error al cargar datos. Intente nuevamente.', 'error');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        // --- RENDERIZADO (DIBUJADO) DE LA TABLA ---
+
+        // 1. Dibuja Encabezados + Inputs de Filtro (Se ejecuta una vez por carga)
+        function renderTableHeaderAndFilters() {
+            dom.theadContainer.innerHTML = '';
+
+            // Fila 1: Títulos de Columna
+            const titleRow = document.createElement('tr');
+            titleRow.className = "bg-slate-800 text-slate-200 sticky-header top-0 shadow-sm z-20";
+            state.headers.forEach(headerText => {
+                const th = document.createElement('th');
+                th.className = "px-4 py-3 text-left text-xs font-bold uppercase tracking-wider whitespace-nowrap border-r border-slate-700 last:border-0 bg-slate-800";
+                th.textContent = headerText.trim();
+                titleRow.appendChild(th);
+            });
+            dom.theadContainer.appendChild(titleRow);
+
+            // Fila 2: Inputs de Filtro (Estilo Excel)
+            const filterRow = document.createElement('tr');
+            filterRow.className = "bg-slate-700 sticky-header filter-row z-20 shadow-md"; // Clase especial para sticky
+            state.headers.forEach((_, colIndex) => {
+                const th = document.createElement('th');
+                th.className = "p-1 border-r border-slate-600 last:border-0 bg-slate-700";
+                
+                const input = document.createElement('input');
+                input.type = "text";
+                input.placeholder = `Filtrar...`;
+                input.className = "w-full px-2 py-1.5 text-xs text-gray-700 bg-slate-50 border border-slate-500 rounded focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent placeholder-slate-400";
+                input.dataset.colIndex = colIndex;
+                
+                // Evento de filtrado (Debounce para rendimiento)
+                let debounceTimer;
+                input.addEventListener('keyup', (e) => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        const value = e.target.value.toLowerCase();
+                        if (value) {
+                            state.activeFilters[colIndex] = value;
+                        } else {
+                            delete state.activeFilters[colIndex];
+                        }
+                        applyFilters();
+                    }, 300); // Espera 300ms después de dejar de escribir
+                });
+
+                th.appendChild(input);
+                filterRow.appendChild(th);
+            });
+            dom.theadContainer.appendChild(filterRow);
+        }
+
+        // 2. Lógica de Filtrado (El cerebro de los filtros)
+        function applyFilters() {
+            // Si no hay filtros, mostramos todo
+            if (Object.keys(state.activeFilters).length === 0) {
+                state.filteredRows = [...state.allDataRows];
+            } else {
+                // Filtramos: una fila debe cumplir TODAS las condiciones activas
+                state.filteredRows = state.allDataRows.filter(row => {
+                    return Object.entries(state.activeFilters).every(([colIndex, filterTerm]) => {
+                        const cellValue = (row[colIndex] || '').toLowerCase();
+                        return cellValue.includes(filterTerm);
+                    });
+                });
+            }
+            renderTableBody();
+            updateCounter();
+        }
+
+        // 3. Dibuja el Cuerpo de Datos
+        function renderTableBody() {
+            const dataToRender = state.filteredRows.slice(0, 2000); // Límite de renderizado por seguridad UI
+            
+            if (dataToRender.length === 0) {
+                 dom.tableBody.innerHTML = `<tr><td colspan="${state.headers.length}" class="p-8 text-center text-gray-500 bg-gray-50 italic border-b">No se encontraron registros con los filtros actuales.</td></tr>`;
+                 return;
+            }
+
+            let htmlMap = dataToRender.map((row, rowIndex) => {
+                 // Zebra striping
+                const bgColor = rowIndex % 2 === 0 ? 'bg-white' : 'bg-slate-50/70';
+                
+                const cellsHtml = row.map(cell => {
+                    let content = cell.trim();
+                    // Lógica de estilos condicionales (Dinero, Estatus)
+                    const styleClass = getCellStyle(content);
+                    content = formatCellContent(content);
+                    return `<td class="px-4 py-2 whitespace-nowrap border-b border-gray-100 ${styleClass}">${content}</td>`;
+                }).join('');
+                
+                return `<tr class="${bgColor} hover:bg-blue-50 transition-colors">${cellsHtml}</tr>`;
+            }).join('');
+
+             // Advertencia si se cortaron datos
+            if (state.filteredRows.length > 2000) {
+                 htmlMap += `<tr><td colspan="${state.headers.length}" class="p-2 text-center text-xs font-bold text-amber-700 bg-amber-100 border-t border-amber-300">⚠️ Se muestran los primeros 2000 registros. Refina tus filtros para ver datos específicos.</td></tr>`;
+            }
+
+            dom.tableBody.innerHTML = htmlMap;
+        }
+
+        // --- FUNCIONES DE ESTILO Y FORMATO ---
+        function getCellStyle(text) {
+            // Alineación derecha para números y moneda
+            if (text.includes('$') || (!isNaN(text) && text !== '' && text.length < 15 && !text.startsWith('0'))) {
+                return "text-right font-mono font-semibold text-slate-700";
+            }
+            // Centro para estatus cortos
+            if(['PAGADA','PENDIENTE','AUTORIZADO','COMPLETADO','CANCELADO','RECHAZO'].some(s => text.toUpperCase().includes(s)) && text.length < 15) {
+                 return "text-center";
+            }
+            return "text-gray-700";
+        }
+
+        function formatCellContent(text) {
+             const upper = text.toUpperCase();
+             // Badges para estatus
+             if(['PAGADA','AUTORIZADO','COMPLETADO'].includes(upper)) return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-800 border border-green-200">${text}</span>`;
+             if(upper.includes('CANCEL') || upper.includes('RECHAZO')) return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 border border-red-200">${text}</span>`;
+             if(upper === 'PENDIENTE') return `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-200">${text}</span>`;
+             return text;
+        }
+
+        // --- DESCARGA EXCEL/CSV ---
+        function downloadExcelCSV() {
+            if (state.filteredRows.length === 0) {
+                showToast('No hay datos para exportar.', 'error');
+                return;
+            }
+            
+            // 1. Construir el contenido CSV
+            let csvContent = "\uFEFF"; // BOM para que Excel reconozca UTF-8 (tildes, ñ)
+            
+            // Header
+            csvContent += state.headers.map(h => `"${h.replace(/"/g, '""')}"`).join(",") + "\r\n";
+            
+            // Datos filtrados
+            state.filteredRows.forEach(row => {
+                const rowStr = row.map(cell => {
+                    // Escapar comillas dobles dentro del texto
+                    let escaped = cell.replace(/"/g, '""');
+                    // Envolver siempre en comillas para manejar comas internas
+                    return `"${escaped}"`;
+                }).join(",");
+                csvContent += rowStr + "\r\n";
+            });
+
+            // 2. Crear Blob y Link de descarga
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+            link.setAttribute("download", `Historico_Filtrado_${dateStr}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast('Archivo CSV generado correctamente.', 'success');
+        }
+
+        // --- UTILIDADES (Parser CSV Robusto, UI) ---
+        function parseCSVRobust(text) {
+            const rows = []; let currentRow = []; let currentCell = ''; let insideQuotes = false;
+            text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n'); // Normalizar saltos
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i]; const nextChar = text[i + 1];
+                if (char === '"') {
+                    if (insideQuotes && nextChar === '"') { currentCell += '"'; i++; } else { insideQuotes = !insideQuotes; }
+                } else if (char === ',' && !insideQuotes) {
+                    currentRow.push(currentCell); currentCell = '';
+                } else if (char === '\n' && !insideQuotes) {
+                    currentRow.push(currentCell); rows.push(currentRow); currentRow = []; currentCell = '';
+                } else { currentCell += char; }
+            }
+            if (currentCell || currentRow.length > 0) { currentRow.push(currentCell); rows.push(currentRow); }
+            return rows;
+        }
+
+        function updateCounter() {
+            const total = state.allDataRows.length;
+            const visible = state.filteredRows.length;
+            dom.recordCounter.textContent = visible === total ? `${total} registros totales` : `Mostrando ${visible} de ${total}`;
+            
+            // Cambiar color indicador
+            const indicatorBg = dom.statusIndicator.querySelector('.bg-blue-500');
+            const indicatorPing = dom.statusIndicator.querySelector('.animate-ping');
+            if(visible === 0 && total > 0) {
+                 indicatorBg.classList.replace('bg-blue-500', 'bg-red-500');
+                 indicatorPing.classList.replace('bg-blue-400', 'bg-red-400');
+            } else {
+                 indicatorBg.classList.replace('bg-red-500', 'bg-blue-500');
+                 indicatorPing.classList.replace('bg-red-400', 'bg-blue-400');
+            }
+        }
+
+        function setLoading(isLoading) {
+            if (isLoading) {
+                dom.loadingOverlay.classList.remove('hidden');
+                dom.loadingOverlay.classList.add('flex');
+                dom.btnReload.classList.add('opacity-75', 'cursor-not-allowed');
+                dom.btnReload.querySelector('i').classList.add('fa-spin');
+            } else {
+                dom.loadingOverlay.classList.add('hidden');
+                dom.loadingOverlay.classList.remove('flex');
+                dom.btnReload.classList.remove('opacity-75', 'cursor-not-allowed');
+                dom.btnReload.querySelector('i').classList.remove('fa-spin');
+            }
+        }
+        
+        function showErrorUI(message) {
+             dom.tableBody.innerHTML = `
+                <tr>
+                    <td colspan="100%" class="p-8 text-center">
+                        <div class="inline-block bg-red-50 border-l-4 border-red-500 text-red-700 p-4 rounded text-left">
+                             <p class="font-bold flex items-center"><i class="fas fa-exclamation-circle mr-2"></i>Error de Carga</p>
+                             <p class="text-sm mt-1">${message}</p>
+                        </div>
+                    </td>
+                </tr>`;
+             dom.recordCounter.textContent = "Error de conexión";
+             dom.btnDownload.disabled = true;
+        }
+
+        // Toast de notificaciones simple
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-600' : (type === 'error' ? 'bg-red-600' : 'bg-blue-600');
+            toast.className = `fixed bottom-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg font-medium z-50 transition-all duration-300 transform translate-y-full opacity-0 flex items-center`;
+            toast.innerHTML = `<i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-info-circle'} mr-3"></i>${message}`;
+            document.body.appendChild(toast);
+            // Animar entrada
+            requestAnimationFrame(() => { toast.classList.remove('translate-y-full', 'opacity-0'); });
+            // Eliminar después de 3s
+            setTimeout(() => {
+                toast.classList.add('translate-y-full', 'opacity-0');
+                setTimeout(() => { document.body.removeChild(toast); }, 300);
+            }, 3000);
+        }
+
+    </script>
+</body>
+</html>

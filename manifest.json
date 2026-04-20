@@ -1,0 +1,20 @@
+{
+  "name": "Centro de Mando FLC",
+  "short_name": "Admin FLC",
+  "start_url": "/movil.html",
+  "display": "standalone",
+  "background_color": "#f1f5f9",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "FLC original.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "FLC original.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
