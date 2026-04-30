@@ -596,6 +596,7 @@
                                     <option value="ranking">🏆 Ranking de Productividad</option>
 
                                     <option value="bancos">🏦 Concentrado de Bancos</option>
+                                    <option value="familias_cobertura">👥 Cobertura de Familias (Operaron / No)</option>
 
                                     <option value="canceladas">Operaciones Canceladas</option>
                                     <option value="efectivos">💵 Reporte de Efectivos</option>
@@ -6262,6 +6263,46 @@
             let excelData = [];
 
             switch (reportType) {
+                case 'familias_cobertura': {
+                    const catalogoFamilias = (AppState.listas.familia || [])
+                        .map(f => (f || '').toString().trim())
+                        .filter(f => f.length > 0);
+
+                    const familiasOperadas = new Set(
+                        reportData
+                            .map(op => (op.familia || '').toString().trim().toUpperCase())
+                            .filter(f => f.length > 0)
+                    );
+
+                    const filas = catalogoFamilias
+                        .map(fam => ({
+                            'Familia': fam,
+                            'Estatus': familiasOperadas.has(fam.toUpperCase()) ? '✅ Operó' : '❌ Sin operar'
+                        }))
+                        .sort((a, b) => {
+                            const aNo = a.Estatus.startsWith('❌') ? 0 : 1;
+                            const bNo = b.Estatus.startsWith('❌') ? 0 : 1;
+                            if (aNo !== bNo) return aNo - bNo;
+                            return a.Familia.localeCompare(b.Familia);
+                        });
+
+                    const totalCatalogo = catalogoFamilias.length;
+                    const totalOperaron = filas.filter(r => r.Estatus.startsWith('✅')).length;
+                    const totalSinOperar = totalCatalogo - totalOperaron;
+                    const cobertura = totalCatalogo > 0
+                        ? ((totalOperaron / totalCatalogo) * 100).toFixed(1) + '%'
+                        : '0%';
+
+                    kpis.push({ label: 'Familias en Catálogo', value: totalCatalogo });
+                    kpis.push({ label: 'Operaron en Periodo', value: totalOperaron });
+                    kpis.push({ label: 'Sin Operar', value: totalSinOperar });
+                    kpis.push({ label: 'Cobertura', value: cobertura });
+
+                    tableHeaders = ['Familia', 'Estatus'];
+                    excelData = filas;
+                    break;
+                }
+
                 case 'canceladas':
                     reportData = reportData.filter(op => op.status === STATUS.CANCELADO);
                     const totalCancelado = reportData.reduce((sum, op) => sum + parseFloat(op.importe), 0);

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -402,6 +402,7 @@
             <div class="border-b border-gray-200">
                 <nav class="-mb-px flex space-x-4 px-6" id="tabs">
                     <button data-panel="operaciones-panel" class="tab active">Operaciones</button>
+                    <button data-panel="rep-avanzado-panel" class="tab border-b-2 border-transparent font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700">Reporteador</button>
                     <button data-panel="tesoreria-panel" class="tab flex items-center gap-2">Auditoría Tesorería <span
                             id="tesoreria-tab-badge"
                             class="hidden bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">0</span></button>
@@ -487,7 +488,7 @@
                         </form>
                     </div>
                     <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-                        <h2 class="text-2xl font-semibold text-gray-700">Reporteador de Operaciones</h2>
+                        <h2 class="text-2xl font-semibold text-gray-700">Historial de Operaciones</h2>
                         <div class="flex items-center gap-4">
                             <!-- BOTÓN ELIMINADO: Descargar Pizarra se movió al Reporteador -->
                             <div>
@@ -523,6 +524,91 @@
                     </div>
 
                     <div id="operaciones-table-container" class="table-container border border-gray-200 rounded-lg">
+                    </div>
+                </div>
+
+                <div id="rep-avanzado-panel" class="panel">
+                        <!-- UI Reporteador -->
+                        <div class="bg-white rounded-lg border border-gray-200 p-6 shadow-sm mb-6">
+                            <div class="flex flex-wrap items-end justify-between gap-4">
+                                <div class="flex flex-wrap gap-4 flex-grow">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Desde</label>
+                                        <input type="date" id="rep-fecha-desde" class="border border-gray-300 rounded-md p-2 text-sm focus:ring-slate-500 focus:border-slate-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Hasta</label>
+                                        <input type="date" id="rep-fecha-hasta" class="border border-gray-300 rounded-md p-2 text-sm focus:ring-slate-500 focus:border-slate-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tipo de Reporte</label>
+                                        <select id="rep-tipo" class="border border-gray-300 rounded-md p-2 text-sm bg-white focus:ring-slate-500 focus:border-slate-500 min-w-[250px]">
+                                            <option value="detallado">📊 Pizarrón de Dispersiones (Detallado)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <button class="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 font-bold shadow-sm transition-colors" onclick="generarReporteadorAvanzado()">
+                                        <i class="fas fa-chart-bar mr-2"></i>Generar Reporte
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4 flex justify-between items-end">
+                            <h3 class="text-xl font-bold text-gray-800">Resultados del Reporte</h3>
+                            <button onclick="exportarReporteadorExcel()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 font-bold shadow-sm transition-colors text-sm">
+                                <i class="fas fa-file-excel mr-2"></i>Exportar (Excel)
+                            </button>
+                        </div>
+
+                        <!-- KPIs -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm flex flex-col justify-center">
+                                <p class="text-sm font-medium text-gray-500 mb-1">Operaciones Pagadas</p>
+                                <p id="rep-kpi-count" class="text-2xl font-bold text-gray-900">0</p>
+                            </div>
+                            <div class="bg-white p-5 rounded-lg border border-gray-200 shadow-sm flex flex-col justify-center">
+                                <p class="text-sm font-medium text-gray-500 mb-1">Total Dispersado</p>
+                                <p id="rep-kpi-total" class="text-2xl font-bold text-gray-900">$0.00</p>
+                            </div>
+                        </div>
+
+                        <!-- TABLA -->
+                        <div class="table-container border border-gray-200 rounded-lg w-full">
+                            <div class="overflow-x-auto w-full custom-scrollbar">
+                                <table class="min-w-max w-full divide-y divide-gray-200 text-xs text-left" id="tabla-reporteador">
+                                    <thead class="bg-[#1a2332] text-white">
+                                        <tr>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">ID</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">FECHA</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">STATUS</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">EJECUTIVO</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">BENEFICIARIO</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">CLIENTE FAMILIA</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">CONCEPTO</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">ESQUEMA</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">IMPORTE TOTAL</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap border-r border-[#2d3748]">MONEDA</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">BANCO 1</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">OPERADORA 1</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap border-r border-[#2d3748]">MONTO 1</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">BANCO 2</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">OPERADORA 2</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap border-r border-[#2d3748]">MONTO 2</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">BANCO 3</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">OPERADORA 3</th>
+                                            <th class="px-4 py-3 font-semibold uppercase tracking-wider whitespace-nowrap">MONTO 3</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rep-tbody" class="bg-white divide-y divide-gray-200">
+                                        <tr>
+                                            <td colspan="19" class="px-4 py-8 text-center text-gray-500 italic">Selecciona un rango de fechas y haz clic en "Generar Reporte"</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -9841,7 +9927,7 @@
                         renderAdminPanel();
                     }
                     const role = tab.dataset.panel.split('-')[0];
-                    if (role !== 'reporteador') {
+                    if (role !== 'reporteador' && role !== 'rep') {
                         // FIX: Preserve 'efectivos' role even when viewing the tesoreria panel.
                         if (AppState.currentUser && AppState.currentUser.role === 'efectivos' && role === 'tesoreria') {
                             AppState.currentRole = 'efectivos';
@@ -9849,7 +9935,7 @@
                             AppState.currentRole = role;
                         }
                         updateViewForRole();
-                    } else {
+                    } else if (role === 'reporteador') {
                         // Inicializar/refrescar el módulo Compras y Gastos
                         if (typeof CG !== 'undefined') CG.init();
                     }
@@ -10495,6 +10581,137 @@
                 filtroRetorno.classList.add('bg-gray-100', 'cursor-not-allowed');
             }
         }, 1000); // Revisar cada 1 segundo
+    </script>
+    <script>
+        // --- LOGICA DEL NUEVO REPORTEADOR ---
+        function switchOpsSubTab(tab) {
+            const btnLista = document.getElementById('subtab-ops-lista');
+            const btnRep = document.getElementById('subtab-ops-reporte');
+            const panelLista = document.getElementById('subpanel-ops-lista');
+            const panelRep = document.getElementById('subpanel-ops-reporte');
+
+            if (tab === 'lista') {
+                btnLista.className = "border-slate-800 text-slate-800 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm transition-colors";
+                btnRep.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors";
+                panelLista.classList.remove('hidden');
+                panelLista.classList.add('block');
+                panelRep.classList.add('hidden');
+                panelRep.classList.remove('block');
+            } else {
+                btnRep.className = "border-slate-800 text-slate-800 whitespace-nowrap py-3 px-1 border-b-2 font-semibold text-sm transition-colors";
+                btnLista.className = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors";
+                panelRep.classList.remove('hidden');
+                panelRep.classList.add('block');
+                panelLista.classList.add('hidden');
+                panelLista.classList.remove('block');
+                
+                // Set default dates if empty
+                if(!document.getElementById('rep-fecha-desde').value) {
+                    const today = new Date();
+                    document.getElementById('rep-fecha-desde').value = today.toISOString().split('T')[0];
+                }
+                if(!document.getElementById('rep-fecha-hasta').value) {
+                    const today = new Date();
+                    document.getElementById('rep-fecha-hasta').value = today.toISOString().split('T')[0];
+                }
+            }
+        }
+
+        function formatCurrency(value) {
+            const num = parseFloat(value);
+            if (isNaN(num)) return '$0.00';
+            return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+        }
+
+        function generarReporteadorAvanzado() {
+            const desde = document.getElementById('rep-fecha-desde').value;
+            const hasta = document.getElementById('rep-fecha-hasta').value;
+            
+            if (!desde || !hasta) {
+                showNotification("Seleccione un rango de fechas.", true);
+                return;
+            }
+
+            const tzOffset = new Date().getTimezoneOffset() * 60000;
+            const startDate = new Date(new Date(desde).getTime() + tzOffset);
+            startDate.setHours(0, 0, 0, 0);
+            const endDate = new Date(new Date(hasta).getTime() + tzOffset);
+            endDate.setHours(23, 59, 59, 999);
+
+            let pagadasCount = 0;
+            let totalDispersado = 0;
+            let tbodyHTML = "";
+
+            const filteredOps = window.AppState.operaciones.filter(op => {
+                if (!op.fecha) return false;
+                const optime = new Date(op.fecha).getTime();
+                return optime >= startDate.getTime() && optime <= endDate.getTime();
+            });
+            
+            filteredOps.sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+
+            if (filteredOps.length === 0) {
+                tbodyHTML = `<tr><td colspan="19" class="px-4 py-8 text-center text-gray-500 italic">No se encontraron operaciones en el rango especificado.</td></tr>`;
+            } else {
+                for (let op of filteredOps) {
+                    const isPagado = op.status && ['completado', 'conciliado', 'pagado'].includes(op.status.toLowerCase());
+                    if (isPagado) {
+                        pagadasCount++;
+                        if (!isNaN(parseFloat(op.importe))) {
+                            totalDispersado += parseFloat(op.importe);
+                        }
+                    }
+
+                    const shortId = op.id ? op.id.substring(0, 6) : 'N/A';
+                    const fechaTxt = op.fecha ? op.fecha.split('T')[0] : 'N/A';
+                    
+                    const b1 = op.banco || op.subcuenta || 'N/A';
+                    const o1 = op.operadora || 'N/A';
+                    const m1 = op.importe || 0;
+                    
+                    tbodyHTML += `<tr class="hover:bg-slate-50 border-b border-gray-100">
+                        <td class="px-4 py-3 whitespace-nowrap text-blue-600 font-medium">${shortId}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">${fechaTxt}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700"><span class="px-2 py-1 rounded-full bg-slate-100 text-[10px] font-bold uppercase">${op.status || 'N/A'}</span></td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">${op.ejecutivo || 'N/A'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">${op.beneficiario || 'N/A'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">${op.familia || op.solicitante || 'N/A'}</td>
+                        <td class="px-4 py-3 text-gray-700 max-w-xs truncate" title="${op.concepto || 'N/A'}">${op.concepto || 'N/A'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">${op.esquema || 'N/A'}</td>
+                        <td class="px-4 py-3 whitespace-nowrap font-bold text-gray-900">${formatCurrency(op.importe)}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700 border-r border-gray-200">${op.moneda || 'MXN'}</td>
+                        
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">${b1}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700">${o1}</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-700 border-r border-gray-200">${formatCurrency(m1)}</td>
+
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500">N/A</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500">N/A</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500 border-r border-gray-200">-</td>
+
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500">N/A</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500">N/A</td>
+                        <td class="px-4 py-3 whitespace-nowrap text-gray-500">-</td>
+                    </tr>`;
+                }
+            }
+
+            document.getElementById('rep-tbody').innerHTML = tbodyHTML;
+            document.getElementById('rep-kpi-count').innerText = pagadasCount;
+            document.getElementById('rep-kpi-total').innerText = formatCurrency(totalDispersado);
+        }
+
+        function exportarReporteadorExcel() {
+            const tbody = document.getElementById('rep-tbody');
+            if (tbody.querySelectorAll('tr').length === 0 || tbody.innerHTML.includes('No se encontraron')) {
+                showNotification("No hay datos para exportar", true);
+                return;
+            }
+
+            const table = document.getElementById('tabla-reporteador');
+            const wb = XLSX.utils.table_to_book(table, { sheet: "Reporte" });
+            XLSX.writeFile(wb, `Reporte_Pizarra_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
     </script>
 </body>
 
